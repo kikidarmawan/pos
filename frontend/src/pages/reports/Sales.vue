@@ -36,22 +36,26 @@
     </div>
 
     <!-- Summary Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
       <div class="card">
-        <p class="text-sm text-gray-600 mb-1">Total Penjualan</p>
+        <p class="text-sm text-gray-600 mb-1">Total Transaksi</p>
         <p class="text-2xl font-bold text-primary-600">{{ summary.total_sales }}</p>
       </div>
       <div class="card">
-        <p class="text-sm text-gray-600 mb-1">Total Pendapatan</p>
+        <p class="text-sm text-gray-600 mb-1">Pendapatan Kotor</p>
         <p class="text-2xl font-bold text-green-600">{{ formatCurrency(summary.total_revenue) }}</p>
       </div>
       <div class="card">
-        <p class="text-sm text-gray-600 mb-1">Total Diskon</p>
-        <p class="text-2xl font-bold text-red-600">{{ formatCurrency(summary.total_discount) }}</p>
+        <p class="text-sm text-gray-600 mb-1">Total Retur</p>
+        <p class="text-2xl font-bold text-red-600">{{ formatCurrency(summary.total_returns ?? 0) }}</p>
       </div>
       <div class="card">
-        <p class="text-sm text-gray-600 mb-1">Total Pajak</p>
-        <p class="text-2xl font-bold text-blue-600">{{ formatCurrency(summary.total_tax) }}</p>
+        <p class="text-sm text-gray-600 mb-1">Pendapatan Bersih</p>
+        <p class="text-2xl font-bold text-blue-600">{{ formatCurrency(summary.net_revenue ?? summary.total_revenue) }}</p>
+      </div>
+      <div class="card">
+        <p class="text-sm text-gray-600 mb-1">Total Diskon</p>
+        <p class="text-2xl font-bold text-amber-600">{{ formatCurrency(summary.total_discount) }}</p>
       </div>
     </div>
 
@@ -66,7 +70,6 @@
               <th class="whitespace-nowrap">Pelanggan</th>
               <th class="whitespace-nowrap">Subtotal</th>
               <th class="whitespace-nowrap">Diskon</th>
-              <th class="whitespace-nowrap">Pajak</th>
               <th class="whitespace-nowrap">Total</th>
               <th class="whitespace-nowrap">Metode</th>
             </tr>
@@ -78,7 +81,6 @@
               <td>{{ sale.customer_name || 'Umum' }}</td>
               <td>{{ formatCurrency(sale.subtotal) }}</td>
               <td class="text-red-600">{{ formatCurrency(sale.discount) }}</td>
-              <td class="text-blue-600">{{ formatCurrency(sale.tax) }}</td>
               <td class="font-bold">{{ formatCurrency(sale.total) }}</td>
               <td>
                 <span :class="sale.payment_method === 'credit' ? 'badge badge-warning' : 'badge badge-info'">
@@ -109,8 +111,9 @@ const sales = ref([])
 const summary = ref({
   total_sales: 0,
   total_revenue: 0,
-  total_discount: 0,
-  total_tax: 0
+  total_returns: 0,
+  net_revenue: 0,
+  total_discount: 0
 })
 
 const filters = ref({

@@ -87,13 +87,22 @@ class PurchaseController extends Controller
 
             // Create purchase details and update stock
             foreach ($request->details as $detail) {
-                // Get product unit for conversion
+                // Get product unit for conversion (atau base unit jika unit_id = base_unit_id)
+                $product = Product::find($detail['product_id']);
                 $productUnit = ProductUnit::where('product_id', $detail['product_id'])
-                    ->where('unit_id', $detail['unit_id'])
+                    ->whereId($detail['unit_id'])
                     ->first();
 
-                // Convert to base unit
-                $quantityInBaseUnit = $detail['quantity'] * $productUnit->conversion_factor;
+                $conversionFactor = 1;
+                if ($productUnit) {
+                    $conversionFactor = (float) $productUnit->conversion_factor;
+                } elseif ($product && $product->base_unit_id == $detail['unit_id']) {
+                    $conversionFactor = 1;
+                } else {
+                    throw new \Exception('Satuan tidak terkonfigurasi untuk produk ini. Tambahkan satuan di data produk.');
+                }
+
+                $quantityInBaseUnit = $detail['quantity'] * $conversionFactor;
 
                 // Create purchase detail
                 PurchaseDetail::create([
@@ -167,11 +176,15 @@ class PurchaseController extends Controller
         try {
             // Reverse stock
             foreach ($purchase->details as $detail) {
+                $product = Product::find($detail->product_id);
                 $productUnit = ProductUnit::where('product_id', $detail->product_id)
                     ->where('unit_id', $detail->unit_id)
                     ->first();
 
-                $quantityInBaseUnit = $detail->quantity * $productUnit->conversion_factor;
+                $conversionFactor = $productUnit
+                    ? (float) $productUnit->conversion_factor
+                    : (($product && $product->base_unit_id == $detail->unit_id) ? 1 : 1);
+                $quantityInBaseUnit = $detail->quantity * $conversionFactor;
 
                 $stock = Stock::where('product_id', $detail->product_id)
                     ->where('warehouse_id', $purchase->warehouse_id)

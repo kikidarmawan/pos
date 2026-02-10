@@ -97,7 +97,7 @@
               </td>
               <td>
                 <span :class="product.total_stock < product.minimum_stock ? 'text-red-600 font-bold' : ''">
-                  {{ product.total_stock || 0 }}
+                  {{ formatStock(product.total_stock) }}
                 </span>
               </td>
               <td>
@@ -158,7 +158,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'vue-toastification'
 import api from '@/utils/axios'
-import { formatCurrency } from '@/utils/format'
+import { formatCurrency, formatStock } from '@/utils/format'
 import { PlusIcon, PencilIcon, TrashIcon, PrinterIcon } from '@heroicons/vue/24/outline'
 import ProductFormModal from './ProductFormModal.vue'
 import BarcodePrintModal from '@/components/BarcodePrintModal.vue'

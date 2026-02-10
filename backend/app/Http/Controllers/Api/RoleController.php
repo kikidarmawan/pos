@@ -11,6 +11,8 @@ class RoleController extends Controller
 {
     public function index(Request $request)
     {
+        $request->user()->can('view_roles') || abort(403, 'Forbidden');
+
         $roles = Role::with('permissions')
             ->when($request->search, function ($query, $search) {
                 $query->where('name', 'like', '%' . $search . '%');
@@ -23,6 +25,8 @@ class RoleController extends Controller
 
     public function store(Request $request)
     {
+        $request->user()->can('create_roles') || abort(403, 'Forbidden');
+
         $request->validate([
             'name' => 'required|string|unique:roles,name',
             'permissions' => 'array',
@@ -44,6 +48,8 @@ class RoleController extends Controller
 
     public function show(Role $role)
     {
+        request()->user()->can('view_roles') || abort(403, 'Forbidden');
+
         $role->load('permissions');
 
         return response()->json($role);
@@ -51,6 +57,8 @@ class RoleController extends Controller
 
     public function update(Request $request, Role $role)
     {
+        $request->user()->can('edit_roles') || abort(403, 'Forbidden');
+
         $request->validate([
             'name' => 'required|string|unique:roles,name,' . $role->id,
             'permissions' => 'array',
@@ -72,6 +80,8 @@ class RoleController extends Controller
 
     public function destroy(Role $role)
     {
+        request()->user()->can('delete_roles') || abort(403, 'Forbidden');
+
         $role->delete();
 
         return response()->json([
@@ -81,6 +91,8 @@ class RoleController extends Controller
 
     public function permissions()
     {
+        request()->user()->can('view_roles') || abort(403, 'Forbidden');
+
         $permissions = Permission::all()->groupBy(function ($permission) {
             return explode('_', $permission->name)[0];
         });

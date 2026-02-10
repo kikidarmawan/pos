@@ -22,7 +22,7 @@
           <span>Stok Rendah Saja</span>
         </label>
         <div class="flex gap-2">
-          <button @click="loadReport" class="btn btn-primary flex-1">
+          <button @click="loadReport" :disabled="loading" class="btn btn-primary flex-1">
             <MagnifyingGlassIcon class="w-5 h-5 mr-2" />
             Tampilkan
           </button>
@@ -52,7 +52,8 @@
 
     <!-- Products Table -->
     <div class="card overflow-hidden">
-      <div class="overflow-x-auto">
+      <div v-if="loading" class="p-8 text-center text-gray-500">Memuat...</div>
+      <div v-else class="overflow-x-auto">
         <table class="table">
           <thead>
             <tr>
@@ -120,13 +121,20 @@ const filters = ref({
 
 const hasPermission = (permission) => authStore.hasPermission(permission)
 
+const loading = ref(false)
 const loadReport = async () => {
+  loading.value = true
   try {
-    const response = await api.get('/reports/stock', { params: filters.value })
-    products.value = response.data.products
-    summary.value = response.data.summary
+    const params = { ...filters.value }
+    if (!params.low_stock) delete params.low_stock
+    const response = await api.get('/reports/stock', { params })
+    products.value = response.data.products || []
+    summary.value = response.data.summary || { total_products: 0, total_stock_value: 0, low_stock_products: 0 }
   } catch (error) {
-    toast.error('Gagal memuat laporan')
+    toast.error(error.response?.data?.message || 'Gagal memuat laporan')
+    products.value = []
+  } finally {
+    loading.value = false
   }
 }
 

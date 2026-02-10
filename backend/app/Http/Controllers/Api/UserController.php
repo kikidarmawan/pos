@@ -11,6 +11,8 @@ class UserController extends Controller
 {
     public function index(Request $request)
     {
+        $request->user()->can('view_users') || abort(403, 'Forbidden');
+
         $users = User::with('roles')
             ->when($request->search, function ($query, $search) {
                 $query->where(function ($q) use ($search) {
@@ -26,6 +28,8 @@ class UserController extends Controller
 
     public function store(Request $request)
     {
+        $request->user()->can('create_users') || abort(403, 'Forbidden');
+
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
@@ -53,6 +57,9 @@ class UserController extends Controller
 
     public function show(User $user)
     {
+        $request = request();
+        $request->user()->can('view_users') || abort(403, 'Forbidden');
+
         $user->load('roles.permissions');
 
         return response()->json($user);
@@ -60,6 +67,8 @@ class UserController extends Controller
 
     public function update(Request $request, User $user)
     {
+        $request->user()->can('edit_users') || abort(403, 'Forbidden');
+
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email,' . $user->id,
@@ -82,6 +91,11 @@ class UserController extends Controller
 
     public function destroy(User $user)
     {
+        request()->user()->can('delete_users') || abort(403, 'Forbidden');
+        if ($user->id === request()->user()->id) {
+            abort(400, 'Tidak dapat menghapus akun sendiri.');
+        }
+
         $user->delete();
 
         return response()->json([
@@ -91,6 +105,8 @@ class UserController extends Controller
 
     public function resetPassword(Request $request, User $user)
     {
+        $request->user()->can('edit_users') || abort(403, 'Forbidden');
+
         $request->validate([
             'password' => 'required|min:8',
         ]);

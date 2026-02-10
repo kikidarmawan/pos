@@ -111,7 +111,6 @@ import {
   KeyIcon,
   DocumentChartBarIcon,
   ArrowPathIcon,
-  PercentBadgeIcon,
   AdjustmentsHorizontalIcon,
   ArrowTrendingUpIcon,
   ArrowDownIcon,
@@ -151,6 +150,7 @@ const menuItems = [
   },
   { name: 'pos', label: 'Point of Sale', path: '/pos', icon: CurrencyDollarIcon, permission: 'create_sales' },
   { name: 'sales', label: 'Penjualan', path: '/sales', icon: ShoppingCartIcon, permission: 'view_sales' },
+  { name: 'sale-returns', label: 'Return Transaksi', path: '/sale-returns', icon: ArrowPathIcon, permission: 'view_sales' },
   { name: 'purchases', label: 'Pembelian', path: '/purchases', icon: TruckIcon, permission: 'view_purchases' },
   {
     name: 'kelola-produk',
@@ -180,9 +180,7 @@ const menuItems = [
     children: [
       { name: 'profit-report', label: 'Laporan Laba/Rugi', path: '/reports/profit', icon: DocumentChartBarIcon, permission: 'view_reports' },
       { name: 'purchase-sale-report', label: 'Pembelian & Penjualan', path: '/reports/purchase-sale', icon: ArrowPathIcon, permission: 'view_reports' },
-      { name: 'tax-report', label: 'Laporan Pajak', path: '/reports/tax', icon: PercentBadgeIcon, permission: 'view_reports' },
       { name: 'supplier-customer-report', label: 'Laporan Supplier & Pelanggan', path: '/reports/supplier-customer', icon: UserGroupIcon, permission: 'view_reports' },
-      { name: 'customer-groups-report', label: 'Laporan Grup Pelanggan', path: '/reports/customer-groups', icon: UserGroupIcon, permission: 'view_reports' },
       { name: 'stock-report', label: 'Laporan Stok', path: '/reports/stock', icon: ChartBarIcon, permission: 'view_reports' },
       { name: 'stock-adjustment-report', label: 'Laporan Penyesuaian Stok', path: '/reports/stock-adjustment', icon: AdjustmentsHorizontalIcon, permission: 'view_reports' },
       { name: 'trending-products-report', label: 'Produk Terlaris', path: '/reports/trending-products', icon: ArrowTrendingUpIcon, permission: 'view_reports' },
@@ -191,6 +189,7 @@ const menuItems = [
       { name: 'product-sell-report', label: 'Laporan Penjualan Produk', path: '/reports/sales', icon: ArrowUpIcon, permission: 'view_reports' },
       { name: 'purchase-payment-report', label: 'Laporan Pembayaran Pembelian', path: '/reports/purchase-payment', icon: BanknotesIcon, permission: 'view_reports' },
       { name: 'sell-payment-report', label: 'Laporan Pembayaran Penjualan', path: '/reports/sell-payment', icon: BanknotesIcon, permission: 'view_reports' },
+      { name: 'daily-cashier-summary', label: 'Daily Cashier POS Summary', path: '/reports/daily-cashier-summary', icon: BanknotesIcon, permission: 'view_reports' },
     ],
   },
 ]

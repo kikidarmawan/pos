@@ -72,6 +72,23 @@
         </div>
       </div>
     </div>
+
+    <!-- Modal Form Gudang -->
+    <WarehouseFormModal
+      v-if="showWarehouseModal"
+      :warehouse="editingWarehouse"
+      @close="closeWarehouseModal"
+      @saved="handleWarehouseSaved"
+    />
+
+    <!-- Modal Form Rak -->
+    <RackFormModal
+      v-if="showRackModal"
+      :rack="editingRack"
+      :selected-warehouse="selectedWarehouse"
+      @close="closeRackModal"
+      @saved="handleRackSaved"
+    />
   </div>
 </template>
 
@@ -81,6 +98,8 @@ import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'vue-toastification'
 import api from '@/utils/axios'
 import { PlusIcon, PencilIcon } from '@heroicons/vue/24/outline'
+import WarehouseFormModal from './WarehouseFormModal.vue'
+import RackFormModal from './RackFormModal.vue'
 
 const authStore = useAuthStore()
 const toast = useToast()
@@ -88,6 +107,10 @@ const toast = useToast()
 const warehouses = ref([])
 const racks = ref([])
 const selectedWarehouse = ref(null)
+const showWarehouseModal = ref(false)
+const showRackModal = ref(false)
+const editingWarehouse = ref(null)
+const editingRack = ref(null)
 
 const hasPermission = (permission) => authStore.hasPermission(permission)
 
@@ -122,55 +145,31 @@ const loadRacks = async () => {
 }
 
 const openWarehouseModal = (warehouse = null) => {
-  const name = warehouse ? prompt('Nama Gudang:', warehouse.name) : prompt('Nama Gudang:')
-  if (!name) return
-
-  const code = warehouse ? prompt('Kode Gudang:', warehouse.code) : prompt('Kode Gudang:')
-  if (!code) return
-
-  const address = warehouse ? prompt('Alamat:', warehouse.address) : prompt('Alamat:')
-
-  saveWarehouse({ name, code, address }, warehouse)
+  editingWarehouse.value = warehouse ?? null
+  showWarehouseModal.value = true
 }
 
-const saveWarehouse = async (data, warehouse = null) => {
-  try {
-    if (warehouse) {
-      await api.put(`/warehouses/${warehouse.id}`, data)
-      toast.success('Gudang berhasil diperbarui')
-    } else {
-      await api.post('/warehouses', data)
-      toast.success('Gudang berhasil ditambahkan')
-    }
-    loadWarehouses()
-  } catch (error) {
-    toast.error('Gagal menyimpan gudang')
-  }
+const closeWarehouseModal = () => {
+  showWarehouseModal.value = false
+  editingWarehouse.value = null
+}
+
+const handleWarehouseSaved = () => {
+  loadWarehouses()
 }
 
 const openRackModal = (rack = null) => {
-  const name = rack ? prompt('Nama Rak:', rack.name) : prompt('Nama Rak:')
-  if (!name) return
-
-  const code = rack ? prompt('Kode Rak:', rack.code) : prompt('Kode Rak:')
-  if (!code) return
-
-  saveRack({ name, code, warehouse_id: selectedWarehouse.value.id }, rack)
+  editingRack.value = rack ?? null
+  showRackModal.value = true
 }
 
-const saveRack = async (data, rack = null) => {
-  try {
-    if (rack) {
-      await api.put(`/racks/${rack.id}`, data)
-      toast.success('Rak berhasil diperbarui')
-    } else {
-      await api.post('/racks', data)
-      toast.success('Rak berhasil ditambahkan')
-    }
-    loadRacks()
-  } catch (error) {
-    toast.error('Gagal menyimpan rak')
-  }
+const closeRackModal = () => {
+  showRackModal.value = false
+  editingRack.value = null
+}
+
+const handleRackSaved = () => {
+  loadRacks()
 }
 
 onMounted(() => {

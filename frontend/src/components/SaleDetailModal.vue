@@ -82,6 +82,44 @@
             </div>
           </div>
 
+          <!-- Data Retur (jika ada) -->
+          <div v-if="sale.sale_returns?.length" class="border-t pt-4">
+            <h3 class="font-medium text-gray-700 mb-3">Data Retur</h3>
+            <p class="text-sm text-gray-500 mb-3">Transaksi ini memiliki {{ sale.sale_returns.length }} retur.</p>
+            <div v-for="ret in sale.sale_returns" :key="ret.id" class="mb-4 p-4 bg-amber-50 rounded-lg border border-amber-200">
+              <div class="flex justify-between items-start mb-2">
+                <div>
+                  <span class="font-medium">{{ ret.return_number }}</span>
+                  <span class="text-gray-500 text-sm ml-2">{{ formatDate(ret.return_date) }}</span>
+                </div>
+                <span class="font-bold text-amber-700">{{ formatCurrency(ret.total) }}</span>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="table text-sm">
+                  <thead>
+                    <tr>
+                      <th>Produk</th>
+                      <th>Satuan</th>
+                      <th class="text-right">Qty Retur</th>
+                      <th class="text-right">Harga</th>
+                      <th class="text-right">Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(rd, i) in (ret.details || [])" :key="i">
+                      <td>{{ rd.product?.name || '-' }}</td>
+                      <td>{{ rd.unit?.name || '-' }}</td>
+                      <td class="text-right">{{ formatStock(rd.quantity) }}</td>
+                      <td class="text-right">{{ formatCurrency(rd.price) }}</td>
+                      <td class="text-right font-medium">{{ formatCurrency(rd.subtotal) }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p v-if="ret.notes" class="text-xs text-gray-600 mt-2">Catatan: {{ ret.notes }}</p>
+            </div>
+          </div>
+
           <!-- Summary -->
           <div class="border-t pt-4 space-y-2 text-sm">
             <div class="flex justify-between">
@@ -155,7 +193,7 @@
 import { ref, computed, watch } from 'vue'
 import { useToast } from 'vue-toastification'
 import api from '@/utils/axios'
-import { formatCurrency, formatDateTime, formatPaymentMethod, formatStock } from '@/utils/format'
+import { formatCurrency, formatDate, formatDateTime, formatPaymentMethod, formatStock } from '@/utils/format'
 import { printReceiptViaBackend } from '@/utils/printReceipt'
 import { XMarkIcon, PrinterIcon } from '@heroicons/vue/24/outline'
 

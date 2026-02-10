@@ -51,6 +51,8 @@
         </table>
       </div>
     </div>
+
+    <SupplierFormModal v-if="showModal" :supplier="selectedSupplier" @close="showModal = false" @saved="handleSaved" />
   </div>
 </template>
 
@@ -60,10 +62,13 @@ import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'vue-toastification'
 import api from '@/utils/axios'
 import { PlusIcon, PencilIcon } from '@heroicons/vue/24/outline'
+import SupplierFormModal from './SupplierFormModal.vue'
 
 const authStore = useAuthStore()
 const toast = useToast()
 const suppliers = ref([])
+const showModal = ref(false)
+const selectedSupplier = ref(null)
 
 const hasPermission = (permission) => authStore.hasPermission(permission)
 
@@ -77,31 +82,12 @@ const loadSuppliers = async () => {
 }
 
 const openModal = (supplier = null) => {
-  const name = supplier ? prompt('Nama Supplier:', supplier.name) : prompt('Nama Supplier:')
-  if (!name) return
-
-  const code = supplier ? prompt('Kode Supplier:', supplier.code) : prompt('Kode Supplier:')
-  if (!code) return
-
-  const phone = supplier ? prompt('Telepon:', supplier.phone) : prompt('Telepon:')
-  const email = supplier ? prompt('Email:', supplier.email) : prompt('Email:')
-
-  saveSupplier({ name, code, phone, email }, supplier)
+  selectedSupplier.value = supplier
+  showModal.value = true
 }
 
-const saveSupplier = async (data, supplier = null) => {
-  try {
-    if (supplier) {
-      await api.put(`/suppliers/${supplier.id}`, data)
-      toast.success('Supplier berhasil diperbarui')
-    } else {
-      await api.post('/suppliers', data)
-      toast.success('Supplier berhasil ditambahkan')
-    }
-    loadSuppliers()
-  } catch (error) {
-    toast.error('Gagal menyimpan supplier')
-  }
+const handleSaved = () => {
+  loadSuppliers()
 }
 
 onMounted(loadSuppliers)

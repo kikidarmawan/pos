@@ -14,17 +14,17 @@ class ProductController extends Controller
     public function index(Request $request)
     {
         $products = Product::with(['category', 'baseUnit', 'productUnits.unit'])
-            ->when(isset($request->search), function ($query, $search) {
+            ->when($request->search, function ($query, $search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', '%' . $search . '%')
                         ->orWhere('code', 'like', '%' . $search . '%')
                         ->orWhere('barcode', 'like', '%' . $search . '%');
                 });
             })
-            ->when(isset($request->category_id), function ($query, $categoryId) {
+            ->when($request->category_id, function ($query, $categoryId) {
                 $query->where('category_id', $categoryId);
             })
-            ->when(isset($request->is_active), function ($query) use ($request) {
+            ->when($request->is_active, function ($query) use ($request) {
                 $query->where('is_active', $request->is_active);
             })
             ->when($request->warehouse_id, function ($query) use ($request) {

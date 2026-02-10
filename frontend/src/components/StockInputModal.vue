@@ -12,12 +12,17 @@
         <!-- Produk -->
         <div>
           <label class="label">Produk *</label>
-          <select v-model="form.product_id" required class="input" @change="onProductChange">
-            <option value="">Pilih produk</option>
-            <option v-for="p in products" :key="p.id" :value="p.id">
-              {{ p.name }} ({{ p.code }})
-            </option>
-          </select>
+          <VSelect
+            v-model="form.product_id"
+            :options="products"
+            :reduce="(p) => p.id"
+            :get-option-label="(p) => p ? `${p.name} (${p.code || ''})` : ''"
+            placeholder="Cari produk..."
+            :filterable="true"
+            :clearable="false"
+            class="vue-select-custom"
+            @input="onProductChange"
+          />
           <p v-if="selectedProduct" class="text-xs text-gray-500 mt-1">
             Satuan dasar: {{ selectedProduct.base_unit?.name || selectedProduct.baseUnit?.name }}
           </p>
@@ -33,7 +38,7 @@
             </option>
             <template v-for="pu in productUnits" :key="pu.id">
               <option :value="pu.unit_id || pu.unit?.id">
-                {{ pu.unit?.name }} (1 = {{ pu.conversion_factor }} {{ baseUnit?.name }})
+                {{ pu.unit?.name }} (1 = {{ formatStock(pu.conversion_factor) }} {{ baseUnit?.name }})
               </option>
             </template>
           </select>
@@ -88,8 +93,8 @@
 
         <!-- Preview konversi -->
         <div v-if="quantityInBaseUnit != null && form.quantity > 0" class="p-3 bg-blue-50 rounded-lg text-sm">
-          <span class="font-medium">Konversi:</span> {{ form.quantity }} {{ selectedUnitName }} =
-          {{ quantityInBaseUnit }} {{ baseUnit?.name }} (satuan dasar)
+          <span class="font-medium">Konversi:</span> {{ formatStock(form.quantity) }} {{ selectedUnitName }} =
+          {{ formatStock(quantityInBaseUnit) }} {{ baseUnit?.name }} (satuan dasar)
         </div>
 
         <!-- Actions -->
@@ -112,6 +117,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useToast } from 'vue-toastification'
 import { XMarkIcon } from '@heroicons/vue/24/outline'
 import api from '@/utils/axios'
+import { formatStock } from '@/utils/format'
 
 const toast = useToast()
 

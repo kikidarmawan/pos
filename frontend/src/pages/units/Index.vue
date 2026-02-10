@@ -41,6 +41,8 @@
         </table>
       </div>
     </div>
+
+    <UnitFormModal v-if="showModal" :unit="selectedUnit" @close="showModal = false" @saved="handleSaved" />
   </div>
 </template>
 
@@ -50,10 +52,13 @@ import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'vue-toastification'
 import api from '@/utils/axios'
 import { PlusIcon, PencilIcon } from '@heroicons/vue/24/outline'
+import UnitFormModal from './UnitFormModal.vue'
 
 const authStore = useAuthStore()
 const toast = useToast()
 const units = ref([])
+const showModal = ref(false)
+const selectedUnit = ref(null)
 
 const hasPermission = (permission) => authStore.hasPermission(permission)
 
@@ -67,28 +72,12 @@ const loadUnits = async () => {
 }
 
 const openModal = (unit = null) => {
-  const name = unit ? prompt('Nama Satuan:', unit.name) : prompt('Nama Satuan:')
-  if (!name) return
-
-  const code = unit ? prompt('Kode Satuan:', unit.code) : prompt('Kode Satuan:')
-  if (!code) return
-
-  saveUnit({ name, code }, unit)
+  selectedUnit.value = unit
+  showModal.value = true
 }
 
-const saveUnit = async (data, unit = null) => {
-  try {
-    if (unit) {
-      await api.put(`/units/${unit.id}`, data)
-      toast.success('Satuan berhasil diperbarui')
-    } else {
-      await api.post('/units', data)
-      toast.success('Satuan berhasil ditambahkan')
-    }
-    loadUnits()
-  } catch (error) {
-    toast.error('Gagal menyimpan satuan')
-  }
+const handleSaved = () => {
+  loadUnits()
 }
 
 onMounted(loadUnits)

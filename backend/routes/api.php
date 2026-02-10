@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\PurchaseController;
 use App\Http\Controllers\Api\SaleController;
+use App\Http\Controllers\Api\SaleReturnController;
 use App\Http\Controllers\Api\SaleHoldController;
 use App\Http\Controllers\Api\StoreController;
 use App\Http\Controllers\Api\StockController;
@@ -60,6 +61,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('sales/{sale}/cancel', [SaleController::class, 'cancel']);
     Route::post('sales/{sale}/print-receipt', [SaleController::class, 'printReceipt']);
 
+    Route::get('sale-returns', [SaleReturnController::class, 'index']);
+    Route::post('sale-returns', [SaleReturnController::class, 'store']);
+    Route::get('sale-returns/{sale_return}', [SaleReturnController::class, 'show']);
+
     Route::get('sale-holds', [SaleHoldController::class, 'index']);
     Route::post('sale-holds', [SaleHoldController::class, 'store']);
     Route::get('sale-holds/{sale_hold}', [SaleHoldController::class, 'show']);
@@ -80,7 +85,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('reports/purchases', [ReportController::class, 'purchasesReport']);
     Route::get('reports/stock', [ReportController::class, 'stockReport']);
     Route::get('reports/profit', [ReportController::class, 'profitReport']);
+    Route::get('reports/supplier-customer', [ReportController::class, 'supplierCustomerReport']);
+    Route::get('reports/sell-payment', [ReportController::class, 'sellPaymentReport']);
     Route::get('reports/stock-movements', [ReportController::class, 'stockMovementReport']);
+    Route::get('reports/daily-cashier-summary', [ReportController::class, 'dailyCashierSummary']);
 
     // Export reports
     Route::get('reports/export/sales', [ReportController::class, 'exportSales']);

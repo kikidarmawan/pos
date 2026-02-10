@@ -41,6 +41,8 @@
         </table>
       </div>
     </div>
+
+    <CategoryFormModal v-if="showModal" :category="selectedCategory" @close="showModal = false" @saved="handleSaved" />
   </div>
 </template>
 
@@ -50,10 +52,13 @@ import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'vue-toastification'
 import api from '@/utils/axios'
 import { PlusIcon, PencilIcon } from '@heroicons/vue/24/outline'
+import CategoryFormModal from './CategoryFormModal.vue'
 
 const authStore = useAuthStore()
 const toast = useToast()
 const categories = ref([])
+const showModal = ref(false)
+const selectedCategory = ref(null)
 
 const hasPermission = (permission) => authStore.hasPermission(permission)
 
@@ -67,28 +72,12 @@ const loadCategories = async () => {
 }
 
 const openModal = (category = null) => {
-  const name = category ? prompt('Nama Kategori:', category.name) : prompt('Nama Kategori:')
-  if (!name) return
-
-  const code = category ? prompt('Kode Kategori:', category.code) : prompt('Kode Kategori:')
-  if (!code) return
-
-  saveCategory({ name, code }, category)
+  selectedCategory.value = category
+  showModal.value = true
 }
 
-const saveCategory = async (data, category = null) => {
-  try {
-    if (category) {
-      await api.put(`/categories/${category.id}`, data)
-      toast.success('Kategori berhasil diperbarui')
-    } else {
-      await api.post('/categories', data)
-      toast.success('Kategori berhasil ditambahkan')
-    }
-    loadCategories()
-  } catch (error) {
-    toast.error('Gagal menyimpan kategori')
-  }
+const handleSaved = () => {
+  loadCategories()
 }
 
 onMounted(loadCategories)

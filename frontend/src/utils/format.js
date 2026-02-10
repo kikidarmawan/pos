@@ -26,11 +26,13 @@ export const formatNumber = (value, decimals = 0) => {
   }).format(value || 0);
 };
 
-/** Format stok tanpa trailing zeros (5 bukan 5.00) */
+/** Format stok - number format tanpa 3 desimal (1 bukan 1.000, 2.5 tetap 2,5) */
 export const formatStock = (value) => {
   const n = Number(value);
-  if (Number.isInteger(n)) return String(n);
-  return String(parseFloat((n || 0).toFixed(2)));
+  return new Intl.NumberFormat("id-ID", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(n || 0);
 };
 
 export const formatPaymentMethod = (method) => {

@@ -16,7 +16,7 @@ class CustomerController extends Controller
                     ->orWhere('code', 'like', '%' . $search . '%')
                     ->orWhere('phone', 'like', '%' . $search . '%');
             })
-            ->when($request->has('is_active'), function ($query) use ($request) {
+            ->when($request->is_active, function ($query) use ($request) {
                 $query->where('is_active', $request->is_active);
             })
             ->latest()

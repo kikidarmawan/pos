@@ -18,7 +18,7 @@ class CategoryController extends Controller
             ->when($request->has('is_active'), function ($query) use ($request) {
                 $query->where('is_active', $request->is_active);
             })
-            ->latest()
+            ->orderBy('code', 'asc')
             ->paginate($request->per_page ?? 15);
 
         return response()->json($categories);

@@ -100,6 +100,18 @@ const routes = [
         component: () => import("@/pages/sales/Index.vue"),
         meta: { permission: "view_sales" },
       },
+      {
+        path: "sale-returns",
+        name: "SaleReturns",
+        component: () => import("@/pages/sale-returns/Index.vue"),
+        meta: { permission: "view_sales" },
+      },
+      {
+        path: "sale-returns/create",
+        name: "SaleReturnCreate",
+        component: () => import("@/pages/sale-returns/Create.vue"),
+        meta: { permission: "create_sales" },
+      },
       // Stock
       {
         path: "stocks",
@@ -139,21 +151,9 @@ const routes = [
         meta: { permission: "view_reports" },
       },
       {
-        path: "reports/tax",
-        name: "TaxReport",
-        component: () => import("@/pages/reports/Tax.vue"),
-        meta: { permission: "view_reports" },
-      },
-      {
         path: "reports/supplier-customer",
         name: "SupplierCustomerReport",
         component: () => import("@/pages/reports/SupplierCustomer.vue"),
-        meta: { permission: "view_reports" },
-      },
-      {
-        path: "reports/customer-groups",
-        name: "CustomerGroupsReport",
-        component: () => import("@/pages/reports/CustomerGroups.vue"),
         meta: { permission: "view_reports" },
       },
       {
@@ -184,6 +184,12 @@ const routes = [
         path: "reports/sell-payment",
         name: "SellPaymentReport",
         component: () => import("@/pages/reports/SellPayment.vue"),
+        meta: { permission: "view_reports" },
+      },
+      {
+        path: "reports/daily-cashier-summary",
+        name: "DailyCashierSummaryReport",
+        component: () => import("@/pages/reports/DailyCashierSummary.vue"),
         meta: { permission: "view_reports" },
       },
       // Settings

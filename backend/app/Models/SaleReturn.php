@@ -6,38 +6,36 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class Sale extends Model
+class SaleReturn extends Model
 {
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'invoice_number',
+        'return_number',
+        'sale_id',
         'warehouse_id',
         'user_id',
-        'sale_date',
-        'customer_id',
-        'customer_name',
-        'customer_phone',
-        'customer_address',
+        'return_date',
         'subtotal',
         'tax',
         'discount',
         'total',
-        'paid',
-        'change',
-        'payment_method',
+        'notes',
         'status',
     ];
 
     protected $casts = [
-        'sale_date' => 'date',
+        'return_date' => 'date',
         'subtotal' => 'decimal:2',
         'tax' => 'decimal:2',
         'discount' => 'decimal:2',
         'total' => 'decimal:2',
-        'paid' => 'decimal:2',
-        'change' => 'decimal:2',
     ];
+
+    public function sale()
+    {
+        return $this->belongsTo(Sale::class);
+    }
 
     public function warehouse()
     {
@@ -49,18 +47,8 @@ class Sale extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function customer()
-    {
-        return $this->belongsTo(Customer::class);
-    }
-
     public function details()
     {
-        return $this->hasMany(SaleDetail::class);
-    }
-
-    public function saleReturns()
-    {
-        return $this->hasMany(SaleReturn::class);
+        return $this->hasMany(SaleReturnDetail::class);
     }
 }

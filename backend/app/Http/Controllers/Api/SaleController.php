@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Sale;
 use App\Services\ReceiptPrintService;
 use App\Models\SaleDetail;
+use App\Models\SaleReturnDetail;
 use App\Models\Product;
 use App\Models\ProductUnit;
 use App\Models\Stock;
@@ -187,7 +188,19 @@ class SaleController extends Controller
 
     public function show(Sale $sale)
     {
-        $sale->load(['warehouse', 'user', 'details.product', 'details.unit']);
+        $sale->load([
+            'warehouse',
+            'user',
+            'details.product',
+            'details.unit',
+            'saleReturns' => fn ($q) => $q->where('status', 'completed')->with(['details.product', 'details.unit', 'user']),
+        ]);
+
+        foreach ($sale->details as $detail) {
+            $returned = SaleReturnDetail::where('sale_detail_id', $detail->id)->sum('quantity');
+            $detail->returned_quantity = (float) $returned;
+            $detail->returnable_quantity = (float) $detail->quantity - $detail->returned_quantity;
+        }
 
         return response()->json($sale);
     }

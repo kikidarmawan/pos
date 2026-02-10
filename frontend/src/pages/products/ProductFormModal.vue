@@ -62,13 +62,13 @@
               Harga Modal *
               <span class="text-xs text-gray-500 font-normal ml-1">(harga beli/pokok per satuan dasar)</span>
             </label>
-            <input v-model="form.base_price" type="number" step="0.01" required class="input"
+            <input v-model="form.base_price" type="number" step="1" min="0" required class="input"
               placeholder="Contoh: 4000" />
           </div>
 
           <div>
             <label class="label">Minimum Stok</label>
-            <input v-model="form.minimum_stock" type="number" step="0.01" class="input" />
+            <input v-model="form.minimum_stock" type="number" step="1" min="0" class="input" />
           </div>
 
           <div>
@@ -115,13 +115,13 @@
 
               <div>
                 <label class="label text-xs">Faktor Konversi *</label>
-                <input v-model="unit.conversion_factor" type="number" step="0.001" required class="input"
+                <input v-model="unit.conversion_factor" type="number" step="0.01" min="0.01" required class="input"
                   placeholder="1" title="Contoh: 1 Roll = 100 Meter, maka faktor konversi = 100" />
               </div>
 
               <div>
                 <label class="label text-xs">Harga Jual *</label>
-                <input v-model="unit.selling_price" type="number" step="0.01" required class="input" />
+                <input v-model="unit.selling_price" type="number" step="1" min="0" required class="input" />
               </div>
 
               <div>
@@ -259,6 +259,14 @@ const handleSubmit = async () => {
   }
 }
 
+/** Nilai bulat → tampil tanpa desimal (.000); nilai desimal → dipakai aslinya, tanpa dibulatkan. */
+function normalizeFormNumber (val) {
+  const n = Number(val)
+  if (Number.isNaN(n)) return val
+  if (Number.isInteger(n)) return n
+  return n
+}
+
 onMounted(() => {
   if (props.product) {
     form.value = {
@@ -268,13 +276,13 @@ onMounted(() => {
       barcode: props.product.barcode || '',
       description: props.product.description || '',
       base_unit_id: props.product.base_unit_id,
-      base_price: props.product.base_price,
-      minimum_stock: props.product.minimum_stock,
+      base_price: normalizeFormNumber(props.product.base_price),
+      minimum_stock: normalizeFormNumber(props.product.minimum_stock),
       is_active: props.product.is_active ? 1 : 0,
       units: props.product.product_units?.map(pu => ({
         unit_id: pu.unit_id,
-        conversion_factor: pu.conversion_factor,
-        selling_price: pu.selling_price,
+        conversion_factor: normalizeFormNumber(pu.conversion_factor),
+        selling_price: normalizeFormNumber(pu.selling_price),
         barcode: pu.barcode || '',
         is_default: pu.is_default
       })) || []

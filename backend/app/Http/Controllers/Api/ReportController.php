@@ -4,10 +4,14 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Sale;
+use App\Models\SaleReturn;
 use App\Models\Purchase;
 use App\Models\Product;
 use App\Models\Stock;
 use App\Models\StockMovement;
+use App\Models\Customer;
+use App\Models\Supplier;
+use App\Models\Store;
 use App\Exports\SalesReportExport;
 use App\Exports\PurchasesReportExport;
 use App\Exports\StockReportExport;
@@ -19,20 +23,32 @@ class ReportController extends Controller
 {
     public function dashboard()
     {
-        // Today's sales
-        $todaySales = Sale::whereDate('sale_date', today())
+        $today = today()->format('Y-m-d');
+        $yearMonth = [date('Y'), date('m')];
+
+        // Today's sales (bruto) minus retur hari ini
+        $todaySalesBruto = Sale::whereDate('sale_date', $today)
             ->where('status', 'completed')
             ->sum('total');
+        $todayReturns = SaleReturn::whereDate('return_date', $today)
+            ->where('status', 'completed')
+            ->sum('total');
+        $todaySales = $todaySalesBruto - $todayReturns;
 
-        $todayTransactions = Sale::whereDate('sale_date', today())
+        $todayTransactions = Sale::whereDate('sale_date', $today)
             ->where('status', 'completed')
             ->count();
 
-        // This month's sales
-        $monthSales = Sale::whereYear('sale_date', date('Y'))
-            ->whereMonth('sale_date', date('m'))
+        // This month's sales (bruto) minus retur bulan ini
+        $monthSalesBruto = Sale::whereYear('sale_date', $yearMonth[0])
+            ->whereMonth('sale_date', $yearMonth[1])
             ->where('status', 'completed')
             ->sum('total');
+        $monthReturns = SaleReturn::whereYear('return_date', $yearMonth[0])
+            ->whereMonth('return_date', $yearMonth[1])
+            ->where('status', 'completed')
+            ->sum('total');
+        $monthSales = $monthSalesBruto - $monthReturns;
 
         // Low stock products
         $lowStockProducts = Product::whereRaw('
@@ -42,23 +58,51 @@ class ReportController extends Controller
         // Total products
         $totalProducts = Product::where('is_active', true)->count();
 
-        // Top selling products this month
-        $topProducts = DB::table('sale_details')
+        // Top selling products this month (net: penjualan - retur)
+        $salesByProduct = DB::table('sale_details')
             ->join('sales', 'sale_details.sale_id', '=', 'sales.id')
             ->join('products', 'sale_details.product_id', '=', 'products.id')
-            ->whereYear('sales.sale_date', date('Y'))
-            ->whereMonth('sales.sale_date', date('m'))
+            ->whereYear('sales.sale_date', $yearMonth[0])
+            ->whereMonth('sales.sale_date', $yearMonth[1])
             ->where('sales.status', 'completed')
             ->select(
                 'products.id',
                 'products.name',
-                DB::raw('SUM(sale_details.quantity) as total_sold'),
-                DB::raw('SUM(sale_details.subtotal) as total_revenue')
+                DB::raw('COALESCE(SUM(sale_details.quantity), 0) as qty_sold'),
+                DB::raw('COALESCE(SUM(sale_details.subtotal), 0) as revenue')
             )
             ->groupBy('products.id', 'products.name')
-            ->orderBy('total_revenue', 'desc')
-            ->limit(5)
-            ->get();
+            ->get()
+            ->keyBy('id');
+
+        $returnsByProduct = DB::table('sale_return_details')
+            ->join('sale_returns', 'sale_return_details.sale_return_id', '=', 'sale_returns.id')
+            ->join('products', 'sale_return_details.product_id', '=', 'products.id')
+            ->whereYear('sale_returns.return_date', $yearMonth[0])
+            ->whereMonth('sale_returns.return_date', $yearMonth[1])
+            ->where('sale_returns.status', 'completed')
+            ->select(
+                'products.id',
+                DB::raw('COALESCE(SUM(sale_return_details.quantity), 0) as qty_returned'),
+                DB::raw('COALESCE(SUM(sale_return_details.subtotal), 0) as return_revenue')
+            )
+            ->groupBy('products.id')
+            ->get()
+            ->keyBy('id');
+
+        $topProducts = $salesByProduct->map(function ($row) use ($returnsByProduct) {
+            $ret = $returnsByProduct->get($row->id);
+            $qtyReturned = $ret ? (float) $ret->qty_returned : 0;
+            $returnRev = $ret ? (float) $ret->return_revenue : 0;
+            $total_sold = max(0, (float) $row->qty_sold - $qtyReturned);
+            $total_revenue = max(0, (float) $row->revenue - $returnRev);
+            return (object) [
+                'id' => $row->id,
+                'name' => $row->name,
+                'total_sold' => $total_sold,
+                'total_revenue' => $total_revenue,
+            ];
+        })->filter(fn ($p) => $p->total_revenue > 0)->sortByDesc('total_revenue')->take(5)->values();
 
         // Recent sales
         $recentSales = Sale::with('warehouse')
@@ -97,11 +141,89 @@ class ReportController extends Controller
 
         $sales = $query->latest('sale_date')->get();
 
+        // Total retur dalam periode (sesuai filter tanggal)
+        $returnsQuery = SaleReturn::where('status', 'completed');
+        if ($request->start_date) {
+            $returnsQuery->whereDate('return_date', '>=', $request->start_date);
+        }
+        if ($request->end_date) {
+            $returnsQuery->whereDate('return_date', '<=', $request->end_date);
+        }
+        if ($request->warehouse_id) {
+            $returnsQuery->where('warehouse_id', $request->warehouse_id);
+        }
+        $totalReturns = $returnsQuery->sum('total');
+
+        $totalRevenue = $sales->sum('total');
         $summary = [
             'total_sales' => $sales->count(),
-            'total_revenue' => $sales->sum('total'),
+            'total_revenue' => $totalRevenue,
+            'total_returns' => $totalReturns,
+            'net_revenue' => $totalRevenue - $totalReturns,
             'total_discount' => $sales->sum('discount'),
             'total_tax' => $sales->sum('tax'),
+        ];
+
+        return response()->json([
+            'sales' => $sales,
+            'summary' => $summary,
+        ]);
+    }
+
+    /**
+     * Laporan Pembayaran Penjualan - fokus pada status pembayaran
+     */
+    public function sellPaymentReport(Request $request)
+    {
+        $query = Sale::with(['warehouse', 'user'])
+            ->where('status', 'completed');
+
+        if ($request->start_date) {
+            $query->whereDate('sale_date', '>=', $request->start_date);
+        }
+
+        if ($request->end_date) {
+            $query->whereDate('sale_date', '<=', $request->end_date);
+        }
+
+        if ($request->warehouse_id) {
+            $query->where('warehouse_id', $request->warehouse_id);
+        }
+
+        if ($request->payment_status === 'lunas') {
+            $query->whereColumn('paid', '>=', 'total');
+        } elseif ($request->payment_status === 'belum_lunas') {
+            $query->whereColumn('paid', '<', 'total');
+        }
+
+        $sales = $query->latest('sale_date')->get();
+
+        // Total retur dalam periode
+        $returnsQuery = SaleReturn::where('status', 'completed');
+        if ($request->start_date) {
+            $returnsQuery->whereDate('return_date', '>=', $request->start_date);
+        }
+        if ($request->end_date) {
+            $returnsQuery->whereDate('return_date', '<=', $request->end_date);
+        }
+        if ($request->warehouse_id) {
+            $returnsQuery->where('warehouse_id', $request->warehouse_id);
+        }
+        $totalReturns = $returnsQuery->sum('total');
+
+        $totalRevenue = $sales->sum('total');
+        $totalPaid = $sales->sum('paid');
+        $totalDebt = $sales->sum(function ($s) {
+            return max(0, (float) $s->total - (float) $s->paid);
+        });
+
+        $summary = [
+            'total_sales' => $sales->count(),
+            'total_revenue' => $totalRevenue,
+            'total_returns' => $totalReturns,
+            'net_revenue' => $totalRevenue - $totalReturns,
+            'total_paid' => $totalPaid,
+            'total_debt' => $totalDebt,
         ];
 
         return response()->json([
@@ -151,22 +273,21 @@ class ReportController extends Controller
             $query->where('category_id', $request->category_id);
         }
 
-        if ($request->has('low_stock') && $request->low_stock) {
+        if ($request->boolean('low_stock')) {
             $query->whereRaw('
-                (SELECT COALESCE(SUM(quantity), 0) FROM stocks WHERE product_id = products.id) < products.minimum_stock
+                (SELECT COALESCE(SUM(quantity), 0) FROM stocks WHERE product_id = products.id' .
+                ($request->warehouse_id ? ' AND warehouse_id = ' . (int) $request->warehouse_id : '') . '
+                ) < products.minimum_stock
             ');
         }
 
-        // Add stock info
-        $query->withSum('stocks as total_stock', 'quantity');
+        // Add stock info - filter by warehouse jika ada
+        $warehouseFilter = $request->warehouse_id
+            ? ' AND warehouse_id = ' . (int) $request->warehouse_id
+            : '';
+        $query->selectRaw('products.*, (SELECT COALESCE(SUM(quantity), 0) FROM stocks WHERE product_id = products.id' . $warehouseFilter . ') as total_stock');
 
-        if ($request->warehouse_id) {
-            $query->whereHas('stocks', function ($q) use ($request) {
-                $q->where('warehouse_id', $request->warehouse_id);
-            });
-        }
-
-        $products = $query->get();
+        $products = $query->orderBy('name')->get();
 
         $summary = [
             'total_products' => $products->count(),
@@ -189,8 +310,8 @@ class ReportController extends Controller
         $startDate = $request->start_date ?? date('Y-m-01');
         $endDate = $request->end_date ?? date('Y-m-d');
 
-        // Get sales in period
-        $salesData = DB::table('sale_details')
+        // Penjualan per produk (periode)
+        $salesByProduct = DB::table('sale_details')
             ->join('sales', 'sale_details.sale_id', '=', 'sales.id')
             ->join('products', 'sale_details.product_id', '=', 'products.id')
             ->whereBetween('sales.sale_date', [$startDate, $endDate])
@@ -198,29 +319,53 @@ class ReportController extends Controller
             ->select(
                 'products.id as product_id',
                 'products.name as product_name',
-                DB::raw('SUM(sale_details.quantity) as quantity_sold'),
-                DB::raw('SUM(sale_details.subtotal) as revenue')
+                DB::raw('COALESCE(SUM(sale_details.quantity), 0) as qty_sold'),
+                DB::raw('COALESCE(SUM(sale_details.subtotal), 0) as revenue')
             )
             ->groupBy('products.id', 'products.name')
-            ->get();
+            ->get()
+            ->keyBy('product_id');
 
-        // Calculate cost (simplified - using base price)
-        $productProfit = $salesData->map(function ($item) {
-            $product = Product::find($item->product_id);
-            $cost = $product ? $item->quantity_sold * $product->base_price * 0.7 : 0; // Assume 70% cost
-            $profit = $item->revenue - $cost;
+        // Retur per produk (periode)
+        $returnsByProduct = DB::table('sale_return_details')
+            ->join('sale_returns', 'sale_return_details.sale_return_id', '=', 'sale_returns.id')
+            ->join('products', 'sale_return_details.product_id', '=', 'products.id')
+            ->whereBetween('sale_returns.return_date', [$startDate, $endDate])
+            ->where('sale_returns.status', 'completed')
+            ->select(
+                'products.id as product_id',
+                DB::raw('COALESCE(SUM(sale_return_details.quantity), 0) as qty_returned'),
+                DB::raw('COALESCE(SUM(sale_return_details.subtotal), 0) as return_revenue')
+            )
+            ->groupBy('products.id')
+            ->get()
+            ->keyBy('product_id');
 
+        $productIds = $salesByProduct->keys()->merge($returnsByProduct->keys())->unique();
+        $productProfit = collect($productIds)->map(function ($productId) use ($salesByProduct, $returnsByProduct) {
+            $sale = $salesByProduct->get($productId);
+            $ret = $returnsByProduct->get($productId);
+            $qtySold = $sale ? (float) $sale->qty_sold : 0;
+            $revenue = $sale ? (float) $sale->revenue : 0;
+            $qtyReturned = $ret ? (float) $ret->qty_returned : 0;
+            $returnRev = $ret ? (float) $ret->return_revenue : 0;
+            $quantity_sold = max(0, $qtySold - $qtyReturned);
+            $netRevenue = max(0, $revenue - $returnRev);
+            $product = Product::find($productId);
+            $cost = $product ? $quantity_sold * $product->base_price * 0.7 : 0;
+            $profit = $netRevenue - $cost;
+            $name = ($sale && isset($sale->product_name)) ? $sale->product_name : ($product?->name ?? 'Produk #' . $productId);
             return [
                 'product' => [
-                    'id' => $item->product_id,
-                    'name' => $item->product_name,
+                    'id' => $productId,
+                    'name' => $name,
                 ],
-                'quantity_sold' => $item->quantity_sold,
-                'revenue' => $item->revenue,
+                'quantity_sold' => $quantity_sold,
+                'revenue' => $netRevenue,
                 'cost' => $cost,
                 'profit' => $profit,
             ];
-        });
+        })->filter(fn ($p) => $p['quantity_sold'] > 0 || $p['revenue'] > 0)->values();
 
         $totalRevenue = $productProfit->sum('revenue');
         $totalCost = $productProfit->sum('cost');
@@ -237,6 +382,58 @@ class ReportController extends Controller
         return response()->json([
             'summary' => $summary,
             'product_profit' => $productProfit,
+        ]);
+    }
+
+    /**
+     * Laporan Supplier & Pelanggan - total jumlah belanja per customer/supplier
+     * type: customer | supplier
+     */
+    public function supplierCustomerReport(Request $request)
+    {
+        $type = $request->type ?? 'customer';
+
+        if ($type === 'customer') {
+            // Total belanja = sum(sales.total) - sum(sale_returns.total) untuk penjualan pelanggan ini
+            $salesSub = 'SELECT COALESCE(SUM(sales.total), 0) FROM sales WHERE sales.customer_id = customers.id AND sales.status = "completed"';
+            if ($request->start_date) {
+                $salesSub .= ' AND sales.sale_date >= "' . $request->start_date . '"';
+            }
+            if ($request->end_date) {
+                $salesSub .= ' AND sales.sale_date <= "' . $request->end_date . '"';
+            }
+            $returnsSub = 'SELECT COALESCE(SUM(sale_returns.total), 0) FROM sale_returns INNER JOIN sales ON sale_returns.sale_id = sales.id WHERE sales.customer_id = customers.id AND sale_returns.status = "completed"';
+            if ($request->start_date) {
+                $returnsSub .= ' AND sale_returns.return_date >= "' . $request->start_date . '"';
+            }
+            if ($request->end_date) {
+                $returnsSub .= ' AND sale_returns.return_date <= "' . $request->end_date . '"';
+            }
+            $data = Customer::selectRaw('customers.*, ((' . $salesSub . ') - (' . $returnsSub . ')) as total_belanja')
+                ->orderByRaw('total_belanja DESC')
+                ->get();
+        } else {
+            $subQuery = 'SELECT COALESCE(SUM(purchases.total), 0) FROM purchases WHERE purchases.supplier_id = suppliers.id AND purchases.status = "received"';
+            if ($request->start_date) {
+                $subQuery .= ' AND purchases.purchase_date >= "' . $request->start_date . '"';
+            }
+            if ($request->end_date) {
+                $subQuery .= ' AND purchases.purchase_date <= "' . $request->end_date . '"';
+            }
+
+            $data = Supplier::selectRaw('suppliers.*, (' . $subQuery . ') as total_belanja')
+                ->orderByRaw('total_belanja DESC')
+                ->get();
+        }
+
+        $summary = [
+            'total_rows' => $data->count(),
+            'total_belanja' => $data->sum('total_belanja'),
+        ];
+
+        return response()->json([
+            'data' => $data,
+            'summary' => $summary,
         ]);
     }
 
@@ -267,6 +464,88 @@ class ReportController extends Controller
         $movements = $query->latest()->paginate($request->per_page ?? 50);
 
         return response()->json($movements);
+    }
+
+    /**
+     * Daily Cashier POS Summary - laporan kasir dengan date range
+     * GET ?start_date=Y-m-d&end_date=Y-m-d&warehouse_id=&user_id=
+     */
+    public function dailyCashierSummary(Request $request)
+    {
+        $request->validate([
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date',
+        ]);
+
+        $startDate = $request->start_date;
+        $endDate = $request->end_date;
+        $store = Store::current();
+
+        $query = Sale::with(['warehouse', 'user'])
+            ->where('status', 'completed')
+            ->whereDate('sale_date', '>=', $startDate)
+            ->whereDate('sale_date', '<=', $endDate);
+
+        if ($request->warehouse_id) {
+            $query->where('warehouse_id', $request->warehouse_id);
+        }
+
+        if ($request->user_id) {
+            $query->where('user_id', $request->user_id);
+        }
+
+        $sales = $query->orderBy('sale_date')->orderBy('created_at')->get();
+
+        $returnsQuery = SaleReturn::with(['sale', 'user'])
+            ->where('status', 'completed')
+            ->whereDate('return_date', '>=', $startDate)
+            ->whereDate('return_date', '<=', $endDate);
+        if ($request->warehouse_id) {
+            $returnsQuery->where('warehouse_id', $request->warehouse_id);
+        }
+        if ($request->user_id) {
+            $returnsQuery->where('user_id', $request->user_id);
+        }
+        $saleReturns = $returnsQuery->orderBy('created_at')->get();
+        $totalReturns = $saleReturns->sum('total');
+
+        $totalRevenue = $sales->sum('total');
+        $byPaymentMethod = [
+            'cash' => 0,
+            'card' => 0,
+            'transfer' => 0,
+            'other' => 0,
+            'credit' => 0,
+        ];
+        foreach ($sales as $sale) {
+            $method = $sale->payment_method ?? 'cash';
+            if (isset($byPaymentMethod[$method])) {
+                $byPaymentMethod[$method] += (float) $sale->total;
+            } else {
+                $byPaymentMethod['other'] += (float) $sale->total;
+            }
+        }
+
+        $summary = [
+            'total_transactions' => $sales->count(),
+            'total_revenue' => $totalRevenue,
+            'total_returns' => $totalReturns,
+            'net_revenue' => $totalRevenue - $totalReturns,
+            'by_payment_method' => $byPaymentMethod,
+        ];
+
+        return response()->json([
+            'store' => $store ? [
+                'name' => $store->name,
+                'address' => $store->address,
+                'phone' => $store->phone,
+            ] : ['name' => 'Toko', 'address' => null, 'phone' => null],
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'sales' => $sales,
+            'sale_returns' => $saleReturns,
+            'summary' => $summary,
+        ]);
     }
 
     // Export methods
@@ -329,21 +608,17 @@ class ReportController extends Controller
             $query->where('category_id', $request->category_id);
         }
 
-        if ($request->has('low_stock') && $request->low_stock) {
+        if ($request->boolean('low_stock')) {
+            $warehouseFilter = $request->warehouse_id ? ' AND warehouse_id = ' . (int) $request->warehouse_id : '';
             $query->whereRaw('
-                (SELECT COALESCE(SUM(quantity), 0) FROM stocks WHERE product_id = products.id) < products.minimum_stock
+                (SELECT COALESCE(SUM(quantity), 0) FROM stocks WHERE product_id = products.id' . $warehouseFilter . ') < products.minimum_stock
             ');
         }
 
-        $query->withSum('stocks as total_stock', 'quantity');
+        $warehouseFilter = $request->warehouse_id ? ' AND warehouse_id = ' . (int) $request->warehouse_id : '';
+        $query->selectRaw('products.*, (SELECT COALESCE(SUM(quantity), 0) FROM stocks WHERE product_id = products.id' . $warehouseFilter . ') as total_stock');
 
-        if ($request->warehouse_id) {
-            $query->whereHas('stocks', function ($q) use ($request) {
-                $q->where('warehouse_id', $request->warehouse_id);
-            });
-        }
-
-        $products = $query->get();
+        $products = $query->orderBy('name')->get();
 
         return Excel::download(
             new StockReportExport($products),
