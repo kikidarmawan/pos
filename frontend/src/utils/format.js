@@ -2,11 +2,13 @@ import { format } from "date-fns";
 import { id } from "date-fns/locale";
 
 export const formatCurrency = (value) => {
+  const n = Number(value);
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
     currency: "IDR",
     minimumFractionDigits: 0,
-  }).format(value || 0);
+    maximumFractionDigits: n !== Math.floor(n) ? 2 : 0,
+  }).format(n || 0);
 };
 
 export const formatDate = (date, formatStr = "dd MMM yyyy") => {
@@ -33,6 +35,22 @@ export const formatStock = (value) => {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   }).format(n || 0);
+};
+
+/** Angka asli tanpa dibulatkan: integer tanpa koma, decimal tampil penuh (mis. 0,025 bukan 0,03) */
+export const formatIntegerOrDecimal = (value) => {
+  const n = Number(value);
+  if (n === 0) return "0";
+  const isInteger = n === Math.floor(n);
+  if (isInteger) {
+    return new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(n);
+  }
+  const formatted = new Intl.NumberFormat("id-ID", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 8,
+  }).format(n);
+  const trimmed = formatted.replace(/,?0+$/, "").replace(/,+$/, "");
+  return trimmed || formatted;
 };
 
 export const formatPaymentMethod = (method) => {

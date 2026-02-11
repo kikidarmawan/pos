@@ -122,6 +122,11 @@
   @apply py-1 px-2 text-sm;
 }
 
+/* Dropdown vue-select yang di-append ke body (di dalam tabel) agar tidak tertutup */
+.vs__dropdown-menu {
+  z-index: 9999;
+}
+
 /* Loading spinner */
 .spinner {
   border: 3px solid #f3f3f3;

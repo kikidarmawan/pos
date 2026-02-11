@@ -289,6 +289,11 @@ class ReportController extends Controller
 
         $products = $query->orderBy('name')->get();
 
+        // Pastikan total_stock numerik (hindari perbandingan string di frontend)
+        $products->each(function ($product) {
+            $product->total_stock = (float) ($product->total_stock ?? 0);
+        });
+
         $summary = [
             'total_products' => $products->count(),
             'total_stock_value' => $products->sum(function ($product) {

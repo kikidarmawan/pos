@@ -13,7 +13,14 @@ class StockController extends Controller
 {
     public function index(Request $request)
     {
-        $stocks = Stock::with(['product.category', 'product.baseUnit', 'product.productUnits.unit', 'warehouse', 'rack'])
+        $stocks = Stock::with([
+            'product' => fn ($q) => $q->withSum('stocks as total_stock', 'quantity'),
+            'product.category',
+            'product.baseUnit',
+            'product.productUnits.unit',
+            'warehouse',
+            'rack',
+        ])
             ->when($request->search, function ($query, $search) {
                 $query->whereHas('product', function ($q) use ($search) {
                     $q->where('name', 'like', '%' . $search . '%')

@@ -8,22 +8,33 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label class="label">Supplier *</label>
-            <select v-model="form.supplier_id" required class="input">
-              <option value="">Pilih Supplier</option>
-              <option v-for="sup in suppliers" :key="sup.id" :value="sup.id">
-                {{ sup.name }}
-              </option>
-            </select>
+            <VSelect
+              v-model="form.supplier_id"
+              :options="suppliers"
+              :reduce="(s) => s.id"
+              label="name"
+              placeholder="Pilih Supplier"
+              :filterable="true"
+              :clearable="false"
+              class="vue-select-custom"
+              input-class="input"
+            />
           </div>
 
           <div>
             <label class="label">Gudang *</label>
-            <select v-model="form.warehouse_id" required class="input" @change="loadRacks">
-              <option value="">Pilih Gudang</option>
-              <option v-for="wh in warehouses" :key="wh.id" :value="wh.id">
-                {{ wh.name }}
-              </option>
-            </select>
+            <VSelect
+              v-model="form.warehouse_id"
+              :options="warehouses"
+              :reduce="(wh) => wh.id"
+              label="name"
+              placeholder="Pilih Gudang"
+              :filterable="true"
+              :clearable="false"
+              class="vue-select-custom"
+              input-class="input"
+              @update:model-value="loadRacks"
+            />
           </div>
 
           <div>
@@ -32,71 +43,99 @@
           </div>
         </div>
 
-        <!-- Items -->
+        <!-- Items: dropdown produk di atas, tabel detail di bawah -->
         <div>
-          <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-bold">Detail Produk *</h3>
-            <button type="button" @click="addItem" class="btn btn-primary btn-sm">
-              <PlusIcon class="w-4 h-4 mr-1" />
+          <h3 class="text-lg font-bold mb-3">Detail Produk *</h3>
+          <div class="flex flex-wrap gap-3 items-end mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+            <div class="flex-1 min-w-[200px]">
+              <label class="label text-xs">Cari / pilih produk</label>
+              <VSelect
+                v-model="selectedProductToAdd"
+                :options="products"
+                :reduce="(p) => p.id"
+                :get-option-label="(p) => p ? `${p.name} (${p.code || '-'})` : ''"
+                placeholder="Nama produk / kode / barcode..."
+                :filterable="true"
+                :clearable="true"
+                class="vue-select-custom"
+                input-class="input"
+                @update:model-value="onProductSelected"
+              />
+            </div>
+            <button type="button" @click="addSelectedProduct" class="btn btn-primary btn-sm shrink-0">
+              <PlusIcon class="w-5 h-5 mr-1 inline" />
               Tambah Produk
             </button>
           </div>
 
-          <div class="space-y-3">
-            <div v-for="(item, index) in form.details" :key="index"
-              class="grid grid-cols-1 md:grid-cols-6 gap-3 p-4 bg-gray-50 rounded-lg">
-              <div>
-                <label class="label text-xs">Produk *</label>
-                <select v-model="item.product_id" required class="input" @change="loadUnits(index)">
-                  <option value="">Pilih</option>
-                  <option v-for="prod in products" :key="prod.id" :value="prod.id">
-                    {{ prod.name }}
-                  </option>
-                </select>
-              </div>
-
-              <div>
-                <label class="label text-xs">Satuan *</label>
-                <select v-model="item.unit_id" required class="input">
-                  <option value="">Pilih</option>
-                  <option v-for="unit in item.units" :key="unit.id" :value="unit.id">
-                    {{ unit.unit.name }}
-                  </option>
-                </select>
-              </div>
-
-              <div>
-                <label class="label text-xs">Rak</label>
-                <select v-model="item.rack_id" class="input">
-                  <option value="">Pilih</option>
-                  <option v-for="rack in racks" :key="rack.id" :value="rack.id">
-                    {{ rack.name }}
-                  </option>
-                </select>
-              </div>
-
-              <div>
-                <label class="label text-xs">Qty *</label>
-                <input v-model="item.quantity" @input="calculateItemSubtotal(index)" type="number" step="0.01" required
-                  class="input" />
-              </div>
-
-              <div>
-                <label class="label text-xs">Harga *</label>
-                <input v-model="item.price" @input="calculateItemSubtotal(index)" type="number" step="0.01" required
-                  class="input" />
-              </div>
-
-              <div class="flex items-end gap-2">
-                <div class="flex-1">
-                  <label class="label text-xs">Subtotal</label>
-                  <input :value="formatCurrency(item.subtotal)" disabled class="input" />
-                </div>
-                <button type="button" @click="removeItem(index)" class="text-red-600 hover:text-red-800 pb-2">
-                  <TrashIcon class="w-5 h-5" />
-                </button>
-              </div>
-            </div>
+          <div class="overflow-x-auto rounded-lg border border-gray-200">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="bg-primary-600 text-white">
+                  <th class="text-left py-2 px-3 font-medium">Produk</th>
+                  <th class="text-left py-2 px-3 font-medium">Satuan *</th>
+                  <th class="text-left py-2 px-3 font-medium">Rak</th>
+                  <th class="text-left py-2 px-3 font-medium">Qty *</th>
+                  <th class="text-left py-2 px-3 font-medium">Harga *</th>
+                  <th class="text-left py-2 px-3 font-medium">Subtotal</th>
+                  <th class="w-10 py-2 px-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(item, index) in form.details" :key="index"
+                  class="border-t border-gray-200 hover:bg-gray-50">
+                  <td class="py-2 px-3 font-medium">{{ getProductName(item.product_id) }}</td>
+                  <td class="py-2 px-3">
+                    <VSelect
+                      v-model="item.unit_id"
+                      :options="item.units"
+                      :reduce="(u) => u.id"
+                      :get-option-label="(u) => u.unit?.name ?? ''"
+                      placeholder="Pilih"
+                      :filterable="true"
+                      :clearable="false"
+                      :append-to-body="true"
+                      class="vue-select-custom vue-select-compact"
+                      input-class="input input-sm py-1"
+                    />
+                  </td>
+                  <td class="py-2 px-3">
+                    <VSelect
+                      v-model="item.rack_id"
+                      :options="racks"
+                      :reduce="(r) => r.id"
+                      label="name"
+                      placeholder="Pilih"
+                      :filterable="true"
+                      :clearable="true"
+                      :append-to-body="true"
+                      class="vue-select-custom vue-select-compact"
+                      input-class="input input-sm py-1"
+                    />
+                  </td>
+                  <td class="py-2 px-3">
+                    <input v-model="item.quantity" @input="calculateItemSubtotal(index)" type="number" step="0.01"
+                      required class="input input-sm w-20 py-1" />
+                  </td>
+                  <td class="py-2 px-3">
+                    <input v-model="item.price" @input="calculateItemSubtotal(index)" type="number" step="0.01"
+                      required class="input input-sm w-28 py-1" />
+                  </td>
+                  <td class="py-2 px-3 font-medium">{{ formatCurrency(item.subtotal) }}</td>
+                  <td class="py-2 px-2">
+                    <button type="button" @click="removeItem(index)" class="p-1.5 text-red-600 hover:bg-red-50 rounded"
+                      title="Hapus baris">
+                      <TrashIcon class="w-5 h-5" />
+                    </button>
+                  </td>
+                </tr>
+                <tr v-if="form.details.length === 0">
+                  <td colspan="7" class="py-8 text-center text-gray-500">
+                    Pilih produk di atas lalu klik &quot;Tambah Produk&quot; untuk menambah baris.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -159,6 +198,7 @@ const suppliers = ref([])
 const warehouses = ref([])
 const products = ref([])
 const racks = ref([])
+const selectedProductToAdd = ref(null)
 
 const form = ref({
   supplier_id: '',
@@ -179,29 +219,54 @@ const total = computed(() => {
   return subtotal.value + (form.value.tax || 0) + (form.value.shipping_cost || 0) - (form.value.discount || 0)
 })
 
-const addItem = () => {
+const getProductName = (productId) => {
+  const p = products.value.find((x) => x.id == productId)
+  return p ? p.name : '-'
+}
+
+const addProductToTable = (productId) => {
+  const existingIndex = form.value.details.findIndex((d) => d.product_id == productId)
+  if (existingIndex >= 0) {
+    const item = form.value.details[existingIndex]
+    item.quantity = (item.quantity || 0) + 1
+    item.subtotal = (item.quantity || 0) * (item.price || 0)
+    return
+  }
+  const product = products.value.find((p) => p.id == productId)
+  if (!product) return
+  const units = product.product_units || product.productUnits || []
+  const hargaModal = Number(product.base_price) || 0
   form.value.details.push({
-    product_id: '',
+    product_id: productId,
     unit_id: '',
     rack_id: '',
     quantity: 1,
-    price: 0,
-    subtotal: 0,
-    units: []
+    price: hargaModal,
+    subtotal: hargaModal,
+    units
   })
+}
+
+const onProductSelected = (productId) => {
+  if (!productId) return
+  addProductToTable(productId)
+  selectedProductToAdd.value = null
+}
+
+const addSelectedProduct = () => {
+  const id = selectedProductToAdd.value
+  if (!id) {
+    toast.warning('Pilih produk dulu dari dropdown di atas')
+    return
+  }
+  addProductToTable(id)
+  selectedProductToAdd.value = null
 }
 
 const removeItem = (index) => {
   form.value.details.splice(index, 1)
 }
 
-const loadUnits = async (index) => {
-  const item = form.value.details[index]
-  const product = products.value.find(p => p.id == item.product_id)
-  if (product) {
-    item.units = product.product_units || []
-  }
-}
 
 const calculateItemSubtotal = (index) => {
   const item = form.value.details[index]
@@ -283,6 +348,5 @@ onMounted(() => {
   loadSuppliers()
   loadWarehouses()
   loadProducts()
-  addItem()
 })
 </script>

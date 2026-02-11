@@ -1,6 +1,6 @@
 <template>
   <div ref="posContainerRef" class="pos-page min-h-[calc(100dvh-6rem)] lg:min-h-[calc(100dvh-5rem)] pb-20">
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 items-stretch min-h-0">
+    <div class="pos-page-grid grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 items-stretch min-h-0">
     <!-- Left: Product Selection -->
     <div class="lg:col-span-2 space-y-3 min-h-0 flex flex-col overflow-hidden order-2 lg:order-1">
       <!-- Customer (compact) -->
@@ -236,12 +236,15 @@
         <div class="space-y-2">
           <button v-for="pu in (selectedProduct?.product_units || selectedProduct?.productUnits || [])" :key="pu.id" @click="addToCart(pu)"
             class="w-full p-4 text-left border-2 rounded-lg hover:border-primary-600 hover:bg-primary-50 transition-colors">
-            <div class="flex justify-between items-center">
-              <div>
-                <p class="font-medium">{{ pu.unit.name }}</p>
-                <p class="text-sm text-gray-500">Konversi: {{ pu.conversion_factor }}x</p>
+            <div class="flex justify-between items-start gap-2">
+              <div class="min-w-0 flex-1">
+                <p class="font-medium">{{ pu.unit?.name ?? '' }}</p>
+                <p class="text-sm text-gray-500">Konversi: {{ formatIntegerOrDecimal(pu.conversion_factor) }}x</p>
+                <p class="text-xs mt-1" :class="(stockForUnit(pu) || 0) < (selectedProduct?.minimum_stock ?? 0) ? 'text-red-600 font-medium' : 'text-gray-500'">
+                  Stok: {{ formatStock(stockForUnit(pu)) }} {{ pu.unit?.name ?? '' }}
+                </p>
               </div>
-              <p class="font-bold text-primary-600">{{ formatCurrency(pu.selling_price) }}</p>
+              <p class="font-bold text-primary-600 shrink-0">{{ formatCurrency(pu.selling_price) }}</p>
             </div>
           </button>
         </div>
@@ -257,6 +260,85 @@
 
     <!-- Customer Form Modal -->
     <CustomerFormModal v-if="showCustomerModal" @close="showCustomerModal = false" @saved="handleCustomerSaved" />
+
+    <!-- Printer Alert Modal -->
+    <div v-if="showPrinterModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      @click.self="closePrinterModal">
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+        <div class="flex items-start gap-3">
+          <div v-if="printerModalContent.type === 'success'"
+            class="shrink-0 w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+            <PrinterIcon class="w-6 h-6 text-green-600" />
+          </div>
+          <div v-else-if="printerModalContent.type === 'error'"
+            class="shrink-0 w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+            <PrinterIcon class="w-6 h-6 text-red-600" />
+          </div>
+          <div v-else
+            class="shrink-0 w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+            <PrinterIcon class="w-6 h-6 text-blue-600" />
+          </div>
+          <div class="flex-1 min-w-0">
+            <h3 class="text-lg font-bold text-gray-900 mb-1">{{ printerModalContent.title }}</h3>
+            <p class="text-gray-600">{{ printerModalContent.message }}</p>
+          </div>
+        </div>
+        <div class="mt-6 flex justify-end gap-2">
+          <template v-if="printerModalContent.confirmMode">
+            <button type="button" @click="closePrinterModal" class="btn btn-secondary">
+              Batal
+            </button>
+            <button type="button" @click="onPrinterModalConfirm" class="btn btn-primary">
+              Lanjutkan
+            </button>
+          </template>
+          <template v-else>
+            <button type="button" @click="closePrinterModal" class="btn btn-primary">
+              Tutup
+            </button>
+          </template>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pilih Printer Modal (device yang pernah dipilih / scan baru) -->
+    <div v-if="showPrinterSelectModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      @click.self="closePrinterSelectModal">
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+        <h3 class="text-lg font-bold text-gray-900 mb-2">Pilih Printer</h3>
+        <p class="text-sm text-gray-600 mb-4">
+          Pilih dari device yang pernah disambungkan, atau scan device baru (USB/Bluetooth).
+        </p>
+        <div v-if="printerPortsLoading" class="py-6 text-center text-gray-500">
+          Memuat daftar device...
+        </div>
+        <div v-else class="space-y-2 mb-4">
+          <button
+            v-for="(item, i) in printerPortsList"
+            :key="i"
+            type="button"
+            @click="connectToSelectedPort(item.port)"
+            class="w-full p-3 text-left rounded-lg border-2 border-gray-200 hover:border-primary-500 hover:bg-primary-50 transition-colors flex items-center gap-3"
+          >
+            <PrinterIcon class="w-5 h-5 text-gray-500 shrink-0" />
+            <span class="font-medium">{{ item.label }}</span>
+          </button>
+          <button
+            type="button"
+            @click="scanNewPrinterDevice"
+            class="w-full p-3 text-left rounded-lg border-2 border-dashed border-primary-400 bg-primary-50/50 hover:bg-primary-100 transition-colors flex items-center gap-3 text-primary-700 font-medium"
+          >
+            <PrinterIcon class="w-5 h-5 shrink-0" />
+            Scan device baru (USB / Bluetooth)
+          </button>
+        </div>
+        <div class="flex justify-end">
+          <button type="button" @click="closePrinterSelectModal" class="btn btn-secondary">
+            Batal
+          </button>
+        </div>
+      </div>
+    </div>
 
     <!-- Held Transactions Modal -->
     <div v-if="showHeldModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
@@ -318,25 +400,66 @@
   width: 100vw !important;
   height: 100vh !important;
   min-height: 100vh !important;
-  overflow-x: visible !important;
-  overflow-y: auto;
+  overflow: hidden !important;
   padding: 1rem 1.5rem !important;
   box-sizing: border-box !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+.pos-page:fullscreen > .pos-page-grid,
+.pos-page:-webkit-full-screen > .pos-page-grid,
+.pos-page:-moz-full-screen > .pos-page-grid,
+.pos-page:-ms-fullscreen > .pos-page-grid {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
 }
 </style>
 <style>
 /* Non-scoped: fullscreen pseudo-class needs global scope in some browsers */
 .pos-page:fullscreen {
   background-color: #f9fafb !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+.pos-page:fullscreen > .pos-page-grid {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
 }
 .pos-page:-webkit-full-screen {
   background-color: #f9fafb !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+.pos-page:-webkit-full-screen > .pos-page-grid {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
 }
 .pos-page:-moz-full-screen {
   background-color: #f9fafb !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+.pos-page:-moz-full-screen > .pos-page-grid {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
 }
 .pos-page:-ms-fullscreen {
   background-color: #f9fafb !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+.pos-page:-ms-fullscreen > .pos-page-grid {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
 }
 </style>
 
@@ -345,7 +468,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useCartStore } from '@/stores/cart'
 import { useToast } from 'vue-toastification'
 import api from '@/utils/axios'
-import { formatCurrency, formatStock, formatDateTime } from '@/utils/format'
+import { formatCurrency, formatStock, formatDateTime, formatIntegerOrDecimal } from '@/utils/format'
 import {
   CubeIcon,
   XMarkIcon,
@@ -358,7 +481,7 @@ import {
   ArrowsPointingInIcon,
   PrinterIcon
 } from '@heroicons/vue/24/outline'
-import { connectThermalPrinter } from '@/utils/printReceipt'
+import { connectThermalPrinter, getAvailablePrinterPorts, connectThermalPrinterWithPort } from '@/utils/printReceipt'
 import PaymentModal from './PaymentModal.vue'
 import CustomerFormModal from '@/components/CustomerFormModal.vue'
 
@@ -384,6 +507,11 @@ const posContainerRef = ref(null)
 const isFullscreen = ref(false)
 const printerConnecting = ref(false)
 const printerReady = ref(false)
+const showPrinterModal = ref(false)
+const printerModalContent = ref({ title: '', message: '', type: 'info' })
+const showPrinterSelectModal = ref(false)
+const printerPortsList = ref([])
+const printerPortsLoading = ref(false)
 
 const checkPrinterReady = () => {
   try {
@@ -394,28 +522,93 @@ const checkPrinterReady = () => {
   }
 }
 
-const connectPrinter = async () => {
-  if (!('serial' in navigator)) {
-    toast.error('Gunakan Chrome atau Edge untuk cetak langsung ke printer thermal')
-    return
+const openPrinterModal = (title, message, type = 'info', confirmMode = false) => {
+  printerModalContent.value = { title, message, type, confirmMode }
+  showPrinterModal.value = true
+}
+
+const closePrinterModal = () => {
+  showPrinterModal.value = false
+}
+
+const printerModalOnConfirm = ref(null)
+
+const onPrinterModalConfirm = async () => {
+  const fn = printerModalOnConfirm.value
+  closePrinterModal()
+  if (typeof fn === 'function') {
+    printerModalOnConfirm.value = null
+    await fn()
   }
+}
+
+const openPrinterSelectModal = async () => {
+  showPrinterSelectModal.value = true
+  printerPortsList.value = []
+  printerPortsLoading.value = true
+  try {
+    printerPortsList.value = await getAvailablePrinterPorts()
+  } catch (_) {
+    printerPortsList.value = []
+  } finally {
+    printerPortsLoading.value = false
+  }
+}
+
+const closePrinterSelectModal = () => {
+  showPrinterSelectModal.value = false
+  printerPortsList.value = []
+}
+
+const connectToSelectedPort = async (port) => {
+  printerConnecting.value = true
+  closePrinterSelectModal()
+  try {
+    await connectThermalPrinterWithPort(port)
+    printerReady.value = true
+    openPrinterModal('Printer Terhubung', 'Printer thermal terhubung. Klik Cetak Struk akan langsung cetak ke printer.', 'success')
+  } catch (err) {
+    openPrinterModal('Gagal Menyambungkan', err.message || 'Gagal menyambungkan printer.', 'error')
+  } finally {
+    printerConnecting.value = false
+  }
+}
+
+const scanNewPrinterDevice = async () => {
+  closePrinterSelectModal()
   printerConnecting.value = true
   try {
-    const result = await connectThermalPrinter()
+    const result = await connectThermalPrinter({ skipConfirm: true })
     if (result === null) {
-      toast.info('Penyambungan printer dibatalkan')
+      openPrinterModal('Dibatalkan', 'Penyambungan printer dibatalkan.', 'info')
       return
     }
     printerReady.value = true
-    toast.success('Printer thermal terhubung. Klik Cetak Struk akan langsung cetak ke printer.')
+    openPrinterModal('Printer Terhubung', 'Printer thermal terhubung. Klik Cetak Struk akan langsung cetak ke printer.', 'success')
   } catch (err) {
     if (err.message?.includes('canceled') || err.name === 'NotFoundError') {
-      toast.info('Pemilihan printer dibatalkan')
+      openPrinterModal('Dibatalkan', 'Pemilihan printer dibatalkan.', 'info')
     } else {
-      toast.error(err.message || 'Gagal menyambungkan printer')
+      openPrinterModal('Gagal Menyambungkan', err.message || 'Gagal menyambungkan printer.', 'error')
     }
   } finally {
     printerConnecting.value = false
+  }
+}
+
+const connectPrinter = async () => {
+  if (!('serial' in navigator)) {
+    openPrinterModal('Browser Tidak Didukung', 'Gunakan Chrome atau Edge untuk cetak langsung ke printer thermal.', 'error')
+    return
+  }
+  openPrinterModal(
+    'Sambungkan Printer',
+    'Pilih printer thermal yang akan disambungkan. Pilih dari daftar device atau scan device baru (USB/Bluetooth).',
+    'info',
+    true
+  )
+  printerModalOnConfirm.value = async () => {
+    await openPrinterSelectModal()
   }
 }
 
@@ -645,7 +838,25 @@ const closeUnitSelector = () => {
   selectedProduct.value = null
 }
 
+/** Stok dalam satuan unit ini (total_stock produk dalam base unit / conversion_factor) */
+const stockForUnit = (pu) => {
+  const total = selectedProduct.value?.total_stock ?? 0
+  const factor = Number(pu.conversion_factor) || 1
+  return factor > 0 ? total / factor : 0
+}
+
 const addToCart = (productUnit) => {
+  const stockAvailable = stockForUnit(productUnit)
+  const existingItem = cartStore.items.find(
+    (item) => item.product.id === selectedProduct.value?.id && item.unit.id === productUnit.unit?.id
+  )
+  const qtyInCart = existingItem ? existingItem.quantity : 0
+  const qtyAfterAdd = qtyInCart + 1
+
+  if (stockAvailable <= 0 || qtyAfterAdd > stockAvailable) {
+    toast.error('Stok produk tidak tersedia')
+    return
+  }
   cartStore.addItem(selectedProduct.value, productUnit.unit, productUnit)
   closeUnitSelector()
 }

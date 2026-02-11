@@ -43,17 +43,18 @@
               <td>{{ stock.warehouse?.name }}</td>
               <td>{{ stock.rack?.name || '-' }}</td>
               <td>
-                <span :class="stock.quantity < stock.product?.minimum_stock ? 'text-red-600 font-bold' : ''">
+                <span :class="isLowStock(stock.product) ? 'text-red-600 font-bold' : ''">
                   {{ formatStock(stock.quantity) }} {{ stock.product?.base_unit?.name || stock.product?.baseUnit?.name || '-' }}
                 </span>
               </td>
               <td>{{ formatStock(stock.product?.minimum_stock ?? 0) }} {{ stock.product?.base_unit?.name || stock.product?.baseUnit?.name || '' }}</td>
               <td>
-                <span :class="stock.quantity < stock.product?.minimum_stock
+                <span :class="isLowStock(stock.product)
                   ? 'badge badge-danger'
                   : 'badge badge-success'
                   ">
-                  {{ stock.quantity < stock.product?.minimum_stock ? 'Rendah' : 'Normal' }} </span>
+                  {{ isLowStock(stock.product) ? 'Rendah' : 'Normal' }}
+                </span>
               </td>
               <td>
                 <button @click="openStockInputModal(stock)" class="text-green-600 hover:text-green-800"
@@ -92,6 +93,14 @@ const filters = ref({
   search: '',
   warehouse_id: ''
 })
+
+/** Stok rendah hanya jika total stok (angka) < min stok (angka) — hindari perbandingan string */
+const isLowStock = (product) => {
+  if (!product) return false
+  const total = Number(product.total_stock) || 0
+  const min = Number(product.minimum_stock) || 0
+  return total < min
+}
 
 const openStockInputModal = (stock = null) => {
   if (stock) {

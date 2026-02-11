@@ -72,18 +72,19 @@
               <td>{{ product.name }}</td>
               <td>{{ product.category?.name }}</td>
               <td>
-                <span :class="(product.total_stock || 0) < (product.minimum_stock || 0) ? 'text-red-600 font-bold' : ''">
+                <span :class="isLowStock(product) ? 'text-red-600 font-bold' : ''">
                   {{ formatStock(product.total_stock ?? 0) }} {{ product.base_unit?.name || product.baseUnit?.name || '-' }}
                 </span>
               </td>
               <td>{{ formatStock(product.minimum_stock ?? 0) }} {{ product.base_unit?.name || product.baseUnit?.name || '' }}</td>
               <td>{{ formatCurrency((product.total_stock || 0) * product.base_price) }}</td>
               <td>
-                <span :class="(product.total_stock || 0) < product.minimum_stock
+                <span :class="isLowStock(product)
                   ? 'badge badge-danger'
                   : 'badge badge-success'
                   ">
-                  {{ (product.total_stock || 0) < product.minimum_stock ? 'Rendah' : 'Normal' }} </span>
+                  {{ isLowStock(product) ? 'Rendah' : 'Normal' }}
+                </span>
               </td>
             </tr>
           </tbody>
@@ -120,6 +121,13 @@ const filters = ref({
 })
 
 const hasPermission = (permission) => authStore.hasPermission(permission)
+
+/** Stok rendah hanya jika total stok (angka) < min stok (angka) — hindari perbandingan string */
+const isLowStock = (product) => {
+  const total = Number(product.total_stock) || 0
+  const min = Number(product.minimum_stock) || 0
+  return total < min
+}
 
 const loading = ref(false)
 const loadReport = async () => {

@@ -95,17 +95,65 @@ export async function connect(options = {}) {
 }
 
 /**
+ * Daftar port yang sudah pernah dipilih user (USB/Bluetooth) - untuk tampil di modal custom
+ * @returns {Promise<Array<{ port: SerialPort, label: string }>>}
+ */
+export async function getAvailablePrinterPorts() {
+  if (!('serial' in navigator)) return []
+  try {
+    const ports = await navigator.serial.getPorts()
+    return ports.map((port, i) => {
+      let label = `Printer ${i + 1}`
+      try {
+        const info = port.getInfo()
+        if (info.usbVendorId != null && info.usbProductId != null) {
+          label = `USB Printer ${i + 1}`
+        } else {
+          label = `Bluetooth Printer ${i + 1}`
+        }
+      } catch (_) {}
+      return { port, label }
+    })
+  } catch (_) {
+    return []
+  }
+}
+
+/**
+ * Sambungkan ke port yang sudah dipilih (dari getPorts) - tanpa buka dialog browser
+ * @param {SerialPort} port - dari getAvailablePrinterPorts()
+ */
+export async function connectThermalPrinterWithPort(port) {
+  if (!port || typeof port.open !== 'function') throw new Error('Port tidak valid')
+  await port.open({ baudRate: 9600 })
+  try {
+    const info = port.getInfo()
+    if (info.usbVendorId != null && info.usbProductId != null) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        vendorId: info.usbVendorId,
+        productId: info.usbProductId,
+      }))
+    }
+  } catch (_) {}
+  await port.close().catch(() => {})
+  return port
+}
+
+/**
  * Sambungkan printer - tampilkan dialog konfirmasi dulu, lalu minta user pilih device
  * Panggil dari tombol "Printer" di halaman POS
+ * @param {Object} options - { skipConfirm: true } untuk lewati konfirmasi (modal sudah ditampilkan di POS)
  */
-export async function connectThermalPrinter() {
+export async function connectThermalPrinter(options = {}) {
   if (!('serial' in navigator)) {
     throw new Error('Web Serial tidak didukung. Gunakan Chrome/Edge.')
   }
-  const confirmed = window.confirm(
-    'Pilih printer thermal yang akan disambungkan. Jendela pemilihan device akan muncul.'
-  )
-  if (!confirmed) return null
+  if (!options.skipConfirm) {
+    const confirmed = window.confirm(
+      'Pilih printer thermal yang akan disambungkan. Jendela pemilihan device akan muncul.'
+    )
+    if (!confirmed) return null
+  }
 
   const port = await navigator.serial.requestPort()
   await port.open({ baudRate: 9600 })
