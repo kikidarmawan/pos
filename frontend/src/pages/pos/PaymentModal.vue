@@ -120,7 +120,7 @@ import { useCartStore } from '@/stores/cart'
 import { useToast } from 'vue-toastification'
 import api from '@/utils/axios'
 import { formatCurrency } from '@/utils/format'
-import { printReceiptViaBackend } from '@/utils/printReceipt'
+import { printReceipt } from '@/utils/printReceipt'
 
 const props = defineProps({
   total: Number,
@@ -252,7 +252,7 @@ const handlePrintReceipt = async () => {
     return
   }
   try {
-    await printReceiptViaBackend(completedSale.value)
+    await printReceipt(completedSale.value)
     toast.success('Struk berhasil dicetak ke printer')
   } catch (err) {
     toast.error(err.response?.data?.message || err.message || 'Gagal cetak.')

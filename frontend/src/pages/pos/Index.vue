@@ -62,7 +62,7 @@
           </button>
           <button type="button" @click="connectPrinter" :disabled="printerConnecting"
             class="p-2.5 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600 hover:text-primary-600 transition-colors shrink-0 flex items-center gap-1.5"
-            :title="printerReady ? 'Printer thermal siap' : 'Sambungkan XPrinter 58IIZ'">
+            title="Info cetak struk">
             <PrinterIcon class="w-5 h-5" :class="printerReady ? 'text-green-600' : ''" />
             <span v-if="printerReady" class="text-xs text-green-600 hidden sm:inline">Siap</span>
             <span v-else class="text-xs hidden sm:inline">{{ printerConnecting ? '...' : 'Printer' }}</span>
@@ -301,45 +301,6 @@
       </div>
     </div>
 
-    <!-- Pilih Printer Modal (device yang pernah dipilih / scan baru) -->
-    <div v-if="showPrinterSelectModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-      @click.self="closePrinterSelectModal">
-      <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-        <h3 class="text-lg font-bold text-gray-900 mb-2">Pilih Printer</h3>
-        <p class="text-sm text-gray-600 mb-4">
-          Pilih dari device yang pernah disambungkan, atau scan device baru (USB/Bluetooth).
-        </p>
-        <div v-if="printerPortsLoading" class="py-6 text-center text-gray-500">
-          Memuat daftar device...
-        </div>
-        <div v-else class="space-y-2 mb-4">
-          <button
-            v-for="(item, i) in printerPortsList"
-            :key="i"
-            type="button"
-            @click="connectToSelectedPort(item.port)"
-            class="w-full p-3 text-left rounded-lg border-2 border-gray-200 hover:border-primary-500 hover:bg-primary-50 transition-colors flex items-center gap-3"
-          >
-            <PrinterIcon class="w-5 h-5 text-gray-500 shrink-0" />
-            <span class="font-medium">{{ item.label }}</span>
-          </button>
-          <button
-            type="button"
-            @click="scanNewPrinterDevice"
-            class="w-full p-3 text-left rounded-lg border-2 border-dashed border-primary-400 bg-primary-50/50 hover:bg-primary-100 transition-colors flex items-center gap-3 text-primary-700 font-medium"
-          >
-            <PrinterIcon class="w-5 h-5 shrink-0" />
-            Scan device baru (USB / Bluetooth)
-          </button>
-        </div>
-        <div class="flex justify-end">
-          <button type="button" @click="closePrinterSelectModal" class="btn btn-secondary">
-            Batal
-          </button>
-        </div>
-      </div>
-    </div>
-
     <!-- Held Transactions Modal -->
     <div v-if="showHeldModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
       @click.self="showHeldModal = false">
@@ -481,7 +442,6 @@ import {
   ArrowsPointingInIcon,
   PrinterIcon
 } from '@heroicons/vue/24/outline'
-import { connectThermalPrinter, getAvailablePrinterPorts, connectThermalPrinterWithPort } from '@/utils/printReceipt'
 import PaymentModal from './PaymentModal.vue'
 import CustomerFormModal from '@/components/CustomerFormModal.vue'
 
@@ -505,22 +465,12 @@ const heldTransactions = ref([])
 const heldSearch = ref('')
 const posContainerRef = ref(null)
 const isFullscreen = ref(false)
-const printerConnecting = ref(false)
-const printerReady = ref(false)
 const showPrinterModal = ref(false)
 const printerModalContent = ref({ title: '', message: '', type: 'info' })
-const showPrinterSelectModal = ref(false)
-const printerPortsList = ref([])
-const printerPortsLoading = ref(false)
+const printerReady = ref(false)
+const printerConnecting = ref(false)
 
-const checkPrinterReady = () => {
-  try {
-    const s = localStorage.getItem('pos_thermal_printer_device')
-    printerReady.value = !!(s && JSON.parse(s)?.vendorId)
-  } catch (_) {
-    printerReady.value = false
-  }
-}
+const checkPrinterReady = () => {}
 
 const openPrinterModal = (title, message, type = 'info', confirmMode = false) => {
   printerModalContent.value = { title, message, type, confirmMode }
@@ -542,74 +492,12 @@ const onPrinterModalConfirm = async () => {
   }
 }
 
-const openPrinterSelectModal = async () => {
-  showPrinterSelectModal.value = true
-  printerPortsList.value = []
-  printerPortsLoading.value = true
-  try {
-    printerPortsList.value = await getAvailablePrinterPorts()
-  } catch (_) {
-    printerPortsList.value = []
-  } finally {
-    printerPortsLoading.value = false
-  }
-}
-
-const closePrinterSelectModal = () => {
-  showPrinterSelectModal.value = false
-  printerPortsList.value = []
-}
-
-const connectToSelectedPort = async (port) => {
-  printerConnecting.value = true
-  closePrinterSelectModal()
-  try {
-    await connectThermalPrinterWithPort(port)
-    printerReady.value = true
-    openPrinterModal('Printer Terhubung', 'Printer thermal terhubung. Klik Cetak Struk akan langsung cetak ke printer.', 'success')
-  } catch (err) {
-    openPrinterModal('Gagal Menyambungkan', err.message || 'Gagal menyambungkan printer.', 'error')
-  } finally {
-    printerConnecting.value = false
-  }
-}
-
-const scanNewPrinterDevice = async () => {
-  closePrinterSelectModal()
-  printerConnecting.value = true
-  try {
-    const result = await connectThermalPrinter({ skipConfirm: true })
-    if (result === null) {
-      openPrinterModal('Dibatalkan', 'Penyambungan printer dibatalkan.', 'info')
-      return
-    }
-    printerReady.value = true
-    openPrinterModal('Printer Terhubung', 'Printer thermal terhubung. Klik Cetak Struk akan langsung cetak ke printer.', 'success')
-  } catch (err) {
-    if (err.message?.includes('canceled') || err.name === 'NotFoundError') {
-      openPrinterModal('Dibatalkan', 'Pemilihan printer dibatalkan.', 'info')
-    } else {
-      openPrinterModal('Gagal Menyambungkan', err.message || 'Gagal menyambungkan printer.', 'error')
-    }
-  } finally {
-    printerConnecting.value = false
-  }
-}
-
-const connectPrinter = async () => {
-  if (!('serial' in navigator)) {
-    openPrinterModal('Browser Tidak Didukung', 'Gunakan Chrome atau Edge untuk cetak langsung ke printer thermal.', 'error')
-    return
-  }
-  openPrinterModal(
-    'Sambungkan Printer',
-    'Pilih printer thermal yang akan disambungkan. Pilih dari daftar device atau scan device baru (USB/Bluetooth).',
-    'info',
-    true
-  )
-  printerModalOnConfirm.value = async () => {
-    await openPrinterSelectModal()
-  }
+const connectPrinter = () => {
+  const isDesktop = typeof window !== 'undefined' && !!window.__TAURI__
+  const message = isDesktop
+    ? 'Cetak struk dilakukan dari aplikasi. Setelah transaksi selesai, klik Cetak Struk di modal pembayaran—dialog print sistem akan terbuka dan Anda bisa pilih printer atau Simpan sebagai PDF.'
+    : 'Cetak struk dilakukan via backend setelah pembayaran. Klik Cetak Struk di modal pembayaran setelah transaksi selesai. Pastikan printer terhubung ke server.'
+  openPrinterModal('Printer', message, 'info')
 }
 
 onMounted(checkPrinterReady)

@@ -1,5 +1,8 @@
-import { createRouter, createWebHistory } from "vue-router";
+import { createRouter, createWebHistory, createWebHashHistory } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
+
+// Di desktop (Tauri) pakai hash agar route berfungsi saat load dari custom protocol
+const isDesktop = typeof window !== "undefined" && !!window.__TAURI__;
 
 const routes = [
   {
@@ -198,6 +201,11 @@ const routes = [
         name: "Store",
         component: () => import("@/pages/settings/Store.vue"),
       },
+      {
+        path: "settings/printer",
+        name: "Printer",
+        component: () => import("@/pages/settings/Printer.vue"),
+      },
       // Profile
       {
         path: "profile",
@@ -209,7 +217,7 @@ const routes = [
 ];
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: isDesktop ? createWebHashHistory() : createWebHistory(),
   routes,
 });
 

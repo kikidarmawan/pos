@@ -117,7 +117,8 @@ import {
   ArrowUpIcon,
   ListBulletIcon,
   BanknotesIcon,
-  Cog6ToothIcon
+  Cog6ToothIcon,
+  PrinterIcon
 } from '@heroicons/vue/24/outline'
 
 const router = useRouter()
@@ -170,6 +171,7 @@ const menuItems = [
     icon: Cog6ToothIcon,
     children: [
       { name: 'store', label: 'Identitas Toko', path: '/settings/store', icon: BuildingStorefrontIcon },
+      { name: 'printer', label: 'Pengaturan Printer', path: '/settings/printer', icon: PrinterIcon },
     ],
   },
   {

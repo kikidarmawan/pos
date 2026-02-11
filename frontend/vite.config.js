@@ -3,7 +3,17 @@ import vue from "@vitejs/plugin-vue";
 import { VitePWA } from "vite-plugin-pwa";
 import path from "path";
 
+const base = "/";
+
+const host = process.env.TAURI_DEV_HOST;
+// Port terpisah untuk Tauri dev agar tidak bentrok dengan npm run dev (5173)
+const isTauriDev = !!process.env.TAURI_ENV_PLATFORM;
+const port = isTauriDev ? 5174 : 5173;
+
 export default defineConfig({
+  base,
+  clearScreen: false,
+  envPrefix: ["VITE_", "TAURI_"],
   plugins: [
     vue(),
     VitePWA({
@@ -59,7 +69,13 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
+    port,
+    strictPort: true,
+    host: host || false,
+    hmr: host ? { protocol: "ws", host, port: 1421 } : undefined,
+    watch: {
+      ignored: ["**/src-tauri/**"],
+    },
     proxy: {
       "/api": {
         target: "http://localhost:8000",
@@ -67,4 +83,11 @@ export default defineConfig({
       },
     },
   },
+  build: process.env.TAURI_ENV_PLATFORM
+    ? {
+        target: process.env.TAURI_ENV_PLATFORM === "windows" ? "chrome105" : "safari13",
+        minify: !process.env.TAURI_ENV_DEBUG ? "esbuild" : false,
+        sourcemap: !!process.env.TAURI_ENV_DEBUG,
+      }
+    : {},
 });

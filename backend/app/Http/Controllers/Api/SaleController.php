@@ -171,7 +171,7 @@ class SaleController extends Controller
 
             DB::commit();
 
-            $sale->load(['warehouse', 'details.product', 'details.unit']);
+            $sale->load(['warehouse', 'user', 'details.product', 'details.unit']);
 
             return response()->json([
                 'message' => 'Penjualan berhasil disimpan',

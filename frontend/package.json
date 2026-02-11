@@ -6,9 +6,16 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build --ci false",
+    "tauri:build:mac": "tauri build --ci false --target universal-apple-darwin",
+    "tauri:build:win": "tauri build --ci false --target x86_64-pc-windows-msvc",
+    "tauri:build:linux": "tauri build --ci false --target x86_64-unknown-linux-gnu"
   },
   "dependencies": {
+    "@tauri-apps/api": "^2.0.0",
     "@headlessui/vue": "^1.7.16",
     "@heroicons/vue": "^2.1.1",
     "axios": "^1.6.2",
@@ -26,6 +33,7 @@
     "vue-toastification": "^2.0.0-rc.5"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0",
     "@vitejs/plugin-vue": "^5.0.0",
     "autoprefixer": "^10.4.16",
     "postcss": "^8.4.32",

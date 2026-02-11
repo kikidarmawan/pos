@@ -73,7 +73,19 @@ class ReceiptPrintService
     }
 
     /**
-     * Cetak struk transaksi ke printer thermal
+     * Ukuran font ESC/POS (1-8): sama dengan pengaturan di Settings > Printer
+     */
+    protected function getTextSize(string $fontSize): array
+    {
+        return match ($fontSize) {
+            'small' => [1, 1],
+            'large' => [2, 2],
+            default => [1, 1], // normal
+        };
+    }
+
+    /**
+     * Cetak struk transaksi ke printer thermal (pakai font_size & show_store_header dari Store, sama dengan POS & test print)
      */
     public function printReceipt(Sale $sale): void
     {
@@ -85,27 +97,36 @@ class ReceiptPrintService
             throw new \RuntimeException('Gagal koneksi printer: ' . $e->getMessage());
         }
 
+        $store = Store::current();
+        $fontSize = $store && in_array($store->font_size ?? '', ['small', 'normal', 'large'], true)
+            ? $store->font_size
+            : 'normal';
+        $showStoreHeader = $store === null || ($store->show_store_header ?? true);
+
         $printer = new Printer($connector);
 
         try {
             $printer->initialize();
+            [$w, $h] = $this->getTextSize($fontSize);
+            $printer->setTextSize($w, $h);
             $printer->setJustification(Printer::JUSTIFY_CENTER);
 
-            // Identitas toko - selalu tampilkan
-            $store = Store::current();
-            $storeName = $store && trim((string) ($store->name ?? '')) !== '' ? trim($store->name) : (config('app.name', 'Toko'));
-            $printer->text(mb_substr($storeName, 0, 24) . "\n");
-            if ($store && trim((string) ($store->address ?? '')) !== '') {
-                $addr = trim($store->address);
-                $printer->text(mb_substr($addr, 0, 24) . "\n");
-                if (mb_strlen($addr) > 24) {
-                    $printer->text(mb_substr($addr, 24, 24) . "\n");
+            // Identitas toko - ikuti pengaturan show_store_header (sama dengan POS & test print)
+            if ($showStoreHeader) {
+                $storeName = $store && trim((string) ($store->name ?? '')) !== '' ? trim($store->name) : (config('app.name', 'Toko'));
+                $printer->text(mb_substr($storeName, 0, 24) . "\n");
+                if ($store && trim((string) ($store->address ?? '')) !== '') {
+                    $addr = trim($store->address);
+                    $printer->text(mb_substr($addr, 0, 24) . "\n");
+                    if (mb_strlen($addr) > 24) {
+                        $printer->text(mb_substr($addr, 24, 24) . "\n");
+                    }
                 }
+                if ($store && trim((string) ($store->phone ?? '')) !== '') {
+                    $printer->text(trim($store->phone) . "\n");
+                }
+                $printer->text("\n");
             }
-            if ($store && trim((string) ($store->phone ?? '')) !== '') {
-                $printer->text(trim($store->phone) . "\n");
-            }
-            $printer->text("\n");
 
             $printer->text("========================\n");
             $printer->text("      STRUK PEMBAYARAN\n");
