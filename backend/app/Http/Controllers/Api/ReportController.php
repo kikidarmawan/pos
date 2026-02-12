@@ -15,50 +15,114 @@ use App\Models\Store;
 use App\Exports\SalesReportExport;
 use App\Exports\PurchasesReportExport;
 use App\Exports\StockReportExport;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ReportController extends Controller
 {
-    public function dashboard()
+    public function dashboard(Request $request)
     {
-        $today = today()->format('Y-m-d');
+        $period = $request->get('period', 'today');
+        $today = Carbon::today()->format('Y-m-d');
+
+        // Date range for period (pakai Carbon supaya timezone konsisten)
+        $startDate = $today;
+        $endDate = $today;
+        if ($period === 'week') {
+            $startDate = Carbon::now()->startOfWeek()->format('Y-m-d');
+            $endDate = Carbon::now()->endOfWeek()->format('Y-m-d');
+        } elseif ($period === 'month') {
+            $startDate = Carbon::now()->startOfMonth()->format('Y-m-d');
+            $endDate = Carbon::now()->endOfMonth()->format('Y-m-d');
+        } elseif ($period === 'financial_year') {
+            $startDate = Carbon::now()->startOfYear()->format('Y-m-d');
+            $endDate = Carbon::now()->endOfYear()->format('Y-m-d');
+        }
+
+        $salesQuery = Sale::where('status', 'completed')
+            ->whereDate('sale_date', '>=', $startDate)
+            ->whereDate('sale_date', '<=', $endDate);
+        $returnsQuery = SaleReturn::where('status', 'completed')
+            ->whereDate('return_date', '>=', $startDate)
+            ->whereDate('return_date', '<=', $endDate);
+        $purchasesQuery = Purchase::whereIn('status', ['received'])
+            ->whereDate('purchase_date', '>=', $startDate)
+            ->whereDate('purchase_date', '<=', $endDate);
+
+        $periodSalesBruto = (float) (clone $salesQuery)->sum('total');
+        $periodSaleReturnsTotal = (float) (clone $returnsQuery)->sum('total');
+        $periodSales = $periodSalesBruto - $periodSaleReturnsTotal;
+        $periodTransactions = (clone $salesQuery)->count();
+        $periodPurchases = (float) (clone $purchasesQuery)->sum('total');
+        $periodPurchaseReturns = 0; // no purchase_returns table
+
+        // Chart: 30 hari terakhir termasuk hari ini (pakai Carbon agar konsisten)
+        $chartStart = Carbon::today()->subDays(29);
+        $chartEnd = Carbon::today();
+        $chartStartStr = $chartStart->format('Y-m-d');
+        $chartEndStr = $chartEnd->format('Y-m-d');
+
+        $salesByDay = Sale::where('status', 'completed')
+            ->whereDate('sale_date', '>=', $chartStartStr)
+            ->whereDate('sale_date', '<=', $chartEndStr)
+            ->select(DB::raw('DATE(sale_date) as date'), DB::raw('COALESCE(SUM(total), 0) as total'))
+            ->groupBy(DB::raw('DATE(sale_date)'))
+            ->get()
+            ->mapWithKeys(fn ($row) => [(string) $row->date => (float) $row->total]);
+        $purchasesByDay = Purchase::whereIn('status', ['received'])
+            ->whereDate('purchase_date', '>=', $chartStartStr)
+            ->whereDate('purchase_date', '<=', $chartEndStr)
+            ->select(DB::raw('DATE(purchase_date) as date'), DB::raw('COALESCE(SUM(total), 0) as total'))
+            ->groupBy(DB::raw('DATE(purchase_date)'))
+            ->get()
+            ->mapWithKeys(fn ($row) => [(string) $row->date => (float) $row->total]);
+        $saleReturnsByDay = SaleReturn::where('status', 'completed')
+            ->whereDate('return_date', '>=', $chartStartStr)
+            ->whereDate('return_date', '<=', $chartEndStr)
+            ->select(DB::raw('DATE(return_date) as date'), DB::raw('COALESCE(SUM(total), 0) as total'))
+            ->groupBy(DB::raw('DATE(return_date)'))
+            ->get()
+            ->mapWithKeys(fn ($row) => [(string) $row->date => (float) $row->total]);
+
+        $transactionsChart30Days = [];
+        for ($d = $chartStart->copy(); $d->lte($chartEnd); $d->addDay()) {
+            $dateStr = $d->format('Y-m-d');
+            $transactionsChart30Days[] = [
+                'date' => $dateStr,
+                'sales_total' => $salesByDay->get($dateStr, 0),
+                'purchases_total' => $purchasesByDay->get($dateStr, 0),
+                'sale_returns_total' => $saleReturnsByDay->get($dateStr, 0),
+                'purchase_returns_total' => 0,
+            ];
+        }
+
+        // Low stock: only where minimum_stock is not null to avoid SQL comparison with null
+        $lowStockProductsList = Product::query()
+            ->select([
+                'products.id',
+                'products.name',
+                'products.minimum_stock',
+                'products.base_unit_id',
+                DB::raw('(SELECT COALESCE(SUM(quantity), 0) FROM stocks WHERE stocks.product_id = products.id) as current_stock'),
+            ])
+            ->where('products.is_active', true)
+            ->whereNotNull('products.minimum_stock')
+            ->whereRaw('(SELECT COALESCE(SUM(stocks.quantity), 0) FROM stocks WHERE stocks.product_id = products.id) < products.minimum_stock')
+            ->with('baseUnit')
+            ->get()
+            ->map(function ($p) {
+                return [
+                    'id' => $p->id,
+                    'name' => $p->name,
+                    'current_stock' => (float) $p->current_stock,
+                    'minimum_stock' => (float) $p->minimum_stock,
+                    'unit_name' => $p->baseUnit?->name ?? '-',
+                ];
+            });
+
         $yearMonth = [date('Y'), date('m')];
-
-        // Today's sales (bruto) minus retur hari ini
-        $todaySalesBruto = Sale::whereDate('sale_date', $today)
-            ->where('status', 'completed')
-            ->sum('total');
-        $todayReturns = SaleReturn::whereDate('return_date', $today)
-            ->where('status', 'completed')
-            ->sum('total');
-        $todaySales = $todaySalesBruto - $todayReturns;
-
-        $todayTransactions = Sale::whereDate('sale_date', $today)
-            ->where('status', 'completed')
-            ->count();
-
-        // This month's sales (bruto) minus retur bulan ini
-        $monthSalesBruto = Sale::whereYear('sale_date', $yearMonth[0])
-            ->whereMonth('sale_date', $yearMonth[1])
-            ->where('status', 'completed')
-            ->sum('total');
-        $monthReturns = SaleReturn::whereYear('return_date', $yearMonth[0])
-            ->whereMonth('return_date', $yearMonth[1])
-            ->where('status', 'completed')
-            ->sum('total');
-        $monthSales = $monthSalesBruto - $monthReturns;
-
-        // Low stock products
-        $lowStockProducts = Product::whereRaw('
-            (SELECT COALESCE(SUM(quantity), 0) FROM stocks WHERE product_id = products.id) < products.minimum_stock
-        ')->count();
-
-        // Total products
-        $totalProducts = Product::where('is_active', true)->count();
-
-        // Top selling products this month (net: penjualan - retur)
         $salesByProduct = DB::table('sale_details')
             ->join('sales', 'sale_details.sale_id', '=', 'sales.id')
             ->join('products', 'sale_details.product_id', '=', 'products.id')
@@ -104,7 +168,6 @@ class ReportController extends Controller
             ];
         })->filter(fn ($p) => $p->total_revenue > 0)->sortByDesc('total_revenue')->take(5)->values();
 
-        // Recent sales
         $recentSales = Sale::with('warehouse')
             ->where('status', 'completed')
             ->latest()
@@ -112,13 +175,17 @@ class ReportController extends Controller
             ->get();
 
         return response()->json([
-            'today_sales' => $todaySales,
-            'today_transactions' => $todayTransactions,
-            'month_sales' => $monthSales,
-            'low_stock_products' => $lowStockProducts,
-            'total_products' => $totalProducts,
+            'period_sales' => $periodSales,
+            'period_transactions' => $periodTransactions,
+            'period_purchases' => $periodPurchases,
+            'period_sale_returns' => $periodSaleReturnsTotal,
+            'period_purchase_returns' => $periodPurchaseReturns,
             'top_products' => $topProducts,
             'recent_sales' => $recentSales,
+            'transactions_chart_30_days' => $transactionsChart30Days,
+            'low_stock_products_list' => $lowStockProductsList,
+            'low_stock_products' => $lowStockProductsList->count(),
+            'total_products' => Product::where('is_active', true)->count(),
         ]);
     }
 

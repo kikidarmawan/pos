@@ -1,4 +1,8 @@
-import { createRouter, createWebHistory, createWebHashHistory } from "vue-router";
+import {
+  createRouter,
+  createWebHistory,
+  createWebHashHistory,
+} from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 
 // Di desktop (Tauri) pakai hash agar route berfungsi saat load dari custom protocol
@@ -88,6 +92,18 @@ const routes = [
         path: "purchases/create",
         name: "PurchaseCreate",
         component: () => import("@/pages/purchases/Create.vue"),
+        meta: { permission: "create_purchases" },
+      },
+      {
+        path: "purchase-returns",
+        name: "PurchaseReturns",
+        component: () => import("@/pages/purchase-returns/Index.vue"),
+        meta: { permission: "view_purchases" },
+      },
+      {
+        path: "purchase-returns/create",
+        name: "PurchaseReturnCreate",
+        component: () => import("@/pages/purchase-returns/Create.vue"),
         meta: { permission: "create_purchases" },
       },
       // Sales/POS

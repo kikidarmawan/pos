@@ -1,193 +1,165 @@
-# POS System - Point of Sale
+# POS System — Point of Sale
 
-Aplikasi POS (Point of Sale) modern dengan arsitektur terpisah antara Backend (Laravel) dan Frontend (Vue.js).
+Aplikasi POS (Point of Sale) untuk mengelola penjualan, stok, dan laporan toko. Backend Laravel API + Frontend Vue.js, dengan aplikasi desktop (Tauri) dan dukungan cetak struk ke printer thermal.
 
-## 🏗️ Struktur Project
+---
+
+## Struktur Project
 
 ```
 pos/
-├── backend/          # Laravel 10 API
+├── backend/              # Laravel API
 │   ├── app/
 │   ├── config/
 │   ├── database/
-│   ├── routes/
+│   ├── routes/api.php
 │   └── ...
 │
-├── frontend/         # Vue.js 3 SPA
+├── frontend/             # Vue.js 3 + Vite
 │   ├── src/
-│   │   ├── pages/
-│   │   ├── stores/
+│   │   ├── pages/        # Halaman (POS, Penjualan, Laporan, Settings, dll)
+│   │   ├── components/
+│   │   ├── layouts/
 │   │   ├── router/
-│   │   └── ...
+│   │   ├── stores/
+│   │   └── utils/
+│   ├── src-tauri/        # Aplikasi desktop (Tauri)
 │   ├── package.json
 │   └── vite.config.js
 │
-├── README.md         # File ini
-└── SETUP_GUIDE.md    # Panduan setup lengkap ⭐
+├── README.md
+├── SETUP_GUIDE.md
+└── PRINTER_RECEIPT_NOTES.md
 ```
 
-## ✨ Fitur Lengkap
+---
 
-✅ **Multi-User dengan Role & Permission**
-- Login dengan Laravel Sanctum
-- Role: Super Admin, Admin, Kasir, Gudang
-- Permission granular per fitur
+## Fitur
 
-✅ **Produk Multi-Satuan**
-- Produk bisa punya banyak satuan (Roll, Meter, Pcs, Box, etc)
-- Konversi otomatis antar satuan
-- Harga jual berbeda per satuan
-- Barcode per satuan
+### Penjualan & Kasir
+- **POS / Kasir** — Keranjang, quick search, barcode, multi satuan
+- **Pembayaran** — Tunai, kartu, transfer, utang (kredit)
+- **Cetak struk** — Dari aplikasi (Tauri) ke printer thermal/default; di browser via backend
+- **Hold transaksi** — Tunda dan lanjut nanti
+- **Riwayat penjualan** — Daftar & detail transaksi, cetak ulang struk
+- **Data pelanggan** — Nama & no. HP di struk
 
-✅ **Pembelian dari Supplier**
-- Form pembelian lengkap
-- Auto stock update
-- Support multi-warehouse & rak
+### Stok & Gudang
+- Multi gudang & rak
+- Stok masuk/keluar, penyesuaian (opname)
+- Riwayat pergerakan stok
 
-✅ **Posisi Penyimpanan (Rak & Gudang)**
-- Multi-warehouse
-- Rak penyimpanan per gudang
-- Stock tracking per lokasi
+### Pembelian
+- Input pembelian & retur
+- Data supplier
 
-✅ **Point of Sale (POS)**
-- Interface kasir modern
-- Quick search produk
-- Barcode scanning
-- Multiple payment methods
-- Auto calculate tax, discount, change
+### Produk & Master
+- Produk dengan kategori & satuan
+- Multi satuan per produk (konversi), harga per satuan
+- Barcode
 
-✅ **Laporan Komprehensif**
-- Dashboard statistik real-time
-- Laporan: Penjualan, Pembelian, Stok, Profit
-- Filter by date, warehouse, supplier
-- Export ke Excel
+### Laporan
+- Dashboard, penjualan, pembelian, stok, laba/rugi
+- Laporan kasir harian, supplier & pelanggan
+- Export (Excel)
 
-✅ **PWA Support**
-- Progressive Web App
-- Install di mobile/desktop
-- Offline capability
+### Pengaturan
+- **Toko** — Nama, alamat, telepon
+- **Printer** — Lebar kertas (58/80 mm), ukuran font, header toko, pilih printer untuk struk, scan printer, cetak uji
+- **User & role** — Super Admin, Admin, Kasir, Gudang (Spatie Permission)
 
-✅ **UI/UX Modern**
-- Tailwind CSS
-- Responsive design
-- Dark mode ready
+### Aplikasi
+- **Browser** — SPA Vue.js (Vite)
+- **Desktop** — Tauri (macOS / Windows / Linux), cetak struk langsung ke printer
 
-## 🚀 Quick Start
+---
 
-### 1. Backend Setup
+## Tech Stack
+
+| Layer    | Teknologi |
+|----------|-----------|
+| Backend  | Laravel 12, MySQL, Sanctum, Spatie Permission, Maatwebsite Excel, Mike42 Escpos (struk via backend) |
+| Frontend | Vue 3, Vite, Pinia, Vue Router, Tailwind CSS, Axios |
+| Desktop  | Tauri 2 (Rust) |
+
+---
+
+## Quick Start
+
+### Persyaratan
+- PHP 8.2+, Composer
+- Node.js 18+, npm
+- MySQL (atau database lain yang didukung Laravel)
+- (Opsional) Rust + Cargo — untuk build aplikasi desktop Tauri
+
+### 1. Backend
 
 ```bash
 cd backend
 composer install
 cp .env.example .env
 php artisan key:generate
-# Edit .env untuk database
+# Sesuaikan DB_* di .env
 php artisan migrate --seed
 php artisan serve
 ```
 
-Backend: `http://localhost:8000`
+API: `http://localhost:8000`
 
-### 2. Frontend Setup
+### 2. Frontend (browser)
 
 ```bash
 cd frontend
 npm install
 cp .env.example .env
+# Sesuaikan VITE_API_URL jika perlu
 npm run dev
 ```
 
 Frontend: `http://localhost:5173`
 
-### 3. Login
+### 3. Desktop (Tauri, opsional)
 
-- Email: `admin@pos.com`
-- Password: `password`
+```bash
+cd frontend
+npm run tauri dev
+```
 
-## 📚 Dokumentasi Lengkap
+Build distribusi:
+- macOS: `npm run tauri:build` atau `npm run tauri:build:mac`
+- Windows: `npm run tauri:build:win`
+- Linux: `npm run tauri:build:linux`
 
-➡️ **Baca [SETUP_GUIDE.md](./SETUP_GUIDE.md) untuk panduan lengkap!**
+### 4. Login
 
-File tersebut berisi:
-- Langkah-langkah setup detail
-- Daftar pages yang perlu dibuat
-- Template contoh code
-- API usage examples
-- Troubleshooting guide
-
-## 🛠️ Tech Stack
-
-**Backend:**
-- Laravel 10
-- MySQL
-- Laravel Sanctum (Auth)
-- Spatie Permission (Role & Permission)
-- Maatwebsite Excel (Export)
-
-**Frontend:**
-- Vue.js 3 (Composition API)
-- Vite
-- Tailwind CSS
-- Pinia (State Management)
-- Vue Router
-- Axios
-- PWA Plugin
-
-## 📊 Database Schema
-
-- `users`, `roles`, `permissions` - User management
-- `categories`, `units`, `products`, `product_units` - Products
-- `warehouses`, `racks` - Storage locations
-- `suppliers` - Supplier data
-- `purchases`, `purchase_details` - Purchase transactions
-- `sales`, `sale_details` - Sales transactions
-- `stocks`, `stock_movements` - Stock tracking
-
-## 🎯 Status Pengembangan
-
-### ✅ Completed
-- Backend API structure
-- Frontend boilerplate
-- Authentication (Login/Logout)
-- Dashboard Layout with Sidebar
-- Router with permissions
-- State management setup
-- API integration setup
-
-### 🚧 In Progress
-- Dashboard page
-- POS (Kasir) page
-- Product management pages
-- Other CRUD pages
-
-### 📋 To Do
-- Semua pages sesuai routing
-- Testing & bug fixes
-- Production deployment
-
-## 👥 Default Users
-
-| Role | Email | Password |
-|------|-------|----------|
-| Super Admin | admin@pos.com | password |
-| Admin | admin.user@pos.com | password |
-| Kasir | kasir@pos.com | password |
-| Gudang | gudang@pos.com | password |
-
-## 📝 License
-
-MIT License - Bebas digunakan untuk project komersial maupun pribadi.
-
-## 🤝 Contributing
-
-Silakan fork dan buat pull request untuk kontribusi.
-
-## 📞 Support
-
-Untuk pertanyaan dan bantuan, lihat [SETUP_GUIDE.md](./SETUP_GUIDE.md)
+| Email             | Password  |
+|-------------------|-----------|
+| admin@pos.com      | password  |
 
 ---
 
-**Dibuat dengan ❤️ menggunakan Laravel & Vue.js**
+## Pengaturan Printer (Desktop / Tauri)
 
-🎉 **Happy Coding!**
+- **Settings → Printer**: atur lebar kertas (58/80 mm), ukuran font, tampilkan header toko, pilih printer untuk struk.
+- **Scan printer**: deteksi printer yang terpasang (termasuk Bluetooth yang sudah dipasang di sistem).
+- **Cetak uji**: tes struk dengan data contoh.
+- Pengaturan disimpan di database (tabel `stores`).
+
+Struk dari POS dan dari detail penjualan memakai alur yang sama (cetak dari aplikasi di Tauri, atau via backend di browser).
+
+---
+
+## Dokumentasi
+
+- **[SETUP_GUIDE.md](./SETUP_GUIDE.md)** — Panduan setup lengkap
+- **[PRINTER_RECEIPT_NOTES.md](./PRINTER_RECEIPT_NOTES.md)** — Catatan cetak struk & `buildReceiptText`
+
+---
+
+## License
+
+MIT — bebas dipakai untuk keperluan pribadi maupun komersial.
+
+---
+
+Dibuat dengan Laravel & Vue.js. Untuk pertanyaan teknis, lihat SETUP_GUIDE.md.

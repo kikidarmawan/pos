@@ -2,6 +2,9 @@ import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 import { VitePWA } from "vite-plugin-pwa";
 import path from "path";
+import { readFileSync } from "fs";
+
+const pkg = JSON.parse(readFileSync(path.resolve(__dirname, "package.json"), "utf-8"));
 
 const base = "/";
 
@@ -14,10 +17,13 @@ export default defineConfig({
   base,
   clearScreen: false,
   envPrefix: ["VITE_", "TAURI_"],
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version || "1.0.0"),
+  },
   plugins: [
     vue(),
     VitePWA({
-      registerType: "autoUpdate",
+      registerType: "prompt",
       includeAssets: ["favicon.ico", "robots.txt", "apple-touch-icon.png"],
       manifest: {
         name: "POS System",

@@ -1,0 +1,40 @@
+Fitur Aplikasi POS
+Penjualan & Kasir
+POS / kasir dengan keranjang belanja
+Multi satuan (pcs, kg, meter, dll)
+Pembayaran tunai, kartu, transfer, utang
+Cetak struk (printer thermal / default)
+Hold transaksi (tunda lanjut nanti)
+Riwayat penjualan & detail transaksi
+Data pelanggan (nama, no. HP) di struk
+Stok & Gudang
+Kelola stok per gudang
+Multi gudang & rak
+Stok masuk / keluar
+Stok opname (penyesuaian)
+Riwayat pergerakan stok
+Pembelian
+Input pembelian & retur pembelian
+Data supplier
+Produk & Master
+Produk dengan kategori & satuan
+Multi satuan per produk (konversi)
+Barcode produk
+Harga jual per satuan
+Laporan
+Laporan penjualan
+Laporan pembelian
+Laporan stok
+Laporan laba/rugi
+Laporan kasir harian
+Laporan supplier & pelanggan
+Export (Excel/dll jika ada)
+Pengaturan
+Identitas toko (nama, alamat, telepon)
+Pengaturan printer (lebar kertas 58/80 mm, ukuran font, header toko)
+Pilih printer untuk struk (scan printer, test print)
+User, role & permission
+Retur penjualan
+Aplikasi
+Desktop (Tauri) & browser
+Cetak struk dari aplikasi (tanpa harus lewat server)

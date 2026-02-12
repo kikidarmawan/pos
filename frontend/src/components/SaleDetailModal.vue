@@ -194,7 +194,7 @@ import { ref, computed, watch } from 'vue'
 import { useToast } from 'vue-toastification'
 import api from '@/utils/axios'
 import { formatCurrency, formatDate, formatDateTime, formatPaymentMethod, formatStock } from '@/utils/format'
-import { printReceiptViaBackend } from '@/utils/printReceipt'
+import { printReceipt } from '@/utils/printReceipt'
 import { XMarkIcon, PrinterIcon } from '@heroicons/vue/24/outline'
 
 const props = defineProps({
@@ -246,7 +246,7 @@ watch(() => props.saleId, (id) => {
 const handlePrint = async () => {
   if (!sale.value) return
   try {
-    await printReceiptViaBackend(sale.value)
+    await printReceipt(sale.value)
     toast.success('Struk berhasil dicetak ke printer')
   } catch (err) {
     toast.error(err.response?.data?.message || err.message || 'Gagal cetak.')

@@ -3,7 +3,7 @@
     <!-- Sidebar -->
     <aside :class="[
       'fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300',
-      sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+      sidebarOpen ? 'translate-x-0' : '-translate-x-full'
     ]">
       <div class="flex flex-col h-full">
         <!-- Logo -->
@@ -35,29 +35,48 @@
                 </router-link>
               </div>
             </div>
-            <!-- Simple link -->
+            <!-- Simple link (active class pakai route.path agar Dashboard hanya aktif di /) -->
             <router-link v-else :to="item.path"
               v-show="!item.permission || hasPermission(item.permission)"
-              class="flex items-center px-6 py-2.5 text-sm text-gray-700 hover:bg-primary-50 hover:text-primary-600 transition-colors"
-              active-class="bg-primary-50 text-primary-600 border-r-4 border-primary-600">
+              :class="[
+                'flex items-center px-6 py-2.5 text-sm text-gray-700 hover:bg-primary-50 hover:text-primary-600 transition-colors',
+                isMenuActive(item) ? 'bg-primary-50 text-primary-600 border-r-4 border-primary-600' : ''
+              ]">
               <component :is="item.icon" class="w-4 h-4 mr-3 shrink-0" />
               <span>{{ item.label }}</span>
             </router-link>
           </template>
         </nav>
+
+        <!-- Versi Aplikasi -->
+        <div class="px-6 py-3 border-t border-gray-100 text-center">
+          <p class="text-xs text-gray-500">POS System v{{ appVersion }}</p>
+        </div>
       </div>
     </aside>
 
     <!-- Main Content -->
-    <div class="lg:pl-64">
+    <div :class="['transition-[padding] duration-300', sidebarOpen ? 'lg:pl-64' : '']">
       <!-- Header -->
       <header class="bg-white shadow-sm sticky top-0 z-40">
-        <div class="flex items-center justify-between px-4 py-3">
-          <button @click="sidebarOpen = !sidebarOpen" class="lg:hidden p-2 rounded-lg hover:bg-gray-100">
+        <div class="flex items-center justify-between px-4 py-3 gap-4">
+          <button
+            type="button"
+            @click="sidebarOpen = !sidebarOpen"
+            class="p-2 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors"
+            :title="sidebarOpen ? 'Tutup menu' : 'Buka menu'"
+            aria-label="Toggle menu"
+          >
             <Bars3Icon class="w-6 h-6" />
           </button>
 
-          <div class="flex-1"></div>
+          <!-- Tanggal & Waktu -->
+          <div class="flex-1 flex justify-center">
+            <div class="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 px-4 py-2 rounded-lg border border-gray-200">
+              <ClockIcon class="w-5 h-5 text-primary-600 shrink-0" />
+              <span class="font-medium tabular-nums">{{ dateTime }}</span>
+            </div>
+          </div>
 
           <div class="flex items-center gap-3">
             <div class="text-right hidden sm:block">
@@ -81,14 +100,13 @@
       </main>
     </div>
 
-    <!-- Mobile Overlay -->
-    <div v-if="sidebarOpen" @click="sidebarOpen = false" class="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden">
-    </div>
+    <!-- Overlay saat sidebar terbuka (mobile) -->
+    <div v-if="sidebarOpen" @click="sidebarOpen = false" class="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden" aria-hidden="true"></div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import {
@@ -118,15 +136,48 @@ import {
   ListBulletIcon,
   BanknotesIcon,
   Cog6ToothIcon,
-  PrinterIcon
+  PrinterIcon,
+  ClockIcon
 } from '@heroicons/vue/24/outline'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 
-const sidebarOpen = ref(false)
+/** Versi aplikasi (di-inject dari package.json saat build) */
+const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.0'
+
+const sidebarOpen = ref(true)
 const user = computed(() => authStore.user)
+const dateTime = ref('')
+
+function formatNavbarDateTime() {
+  const now = new Date()
+  const dateStr = now.toLocaleDateString('id-ID', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  })
+  const timeStr = now.toLocaleTimeString('id-ID', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  })
+  return `${dateStr} | ${timeStr}`
+}
+
+let dateTimeInterval = null
+onMounted(() => {
+  dateTime.value = formatNavbarDateTime()
+  dateTimeInterval = setInterval(() => {
+    dateTime.value = formatNavbarDateTime()
+  }, 1000)
+})
+onUnmounted(() => {
+  if (dateTimeInterval) clearInterval(dateTimeInterval)
+})
 
 const menuItems = [
   { name: 'dashboard', label: 'Dashboard', path: '/', icon: HomeIcon },
@@ -150,9 +201,26 @@ const menuItems = [
     ],
   },
   { name: 'pos', label: 'Point of Sale', path: '/pos', icon: CurrencyDollarIcon, permission: 'create_sales' },
-  { name: 'sales', label: 'Penjualan', path: '/sales', icon: ShoppingCartIcon, permission: 'view_sales' },
-  { name: 'sale-returns', label: 'Return Transaksi', path: '/sale-returns', icon: ArrowPathIcon, permission: 'view_sales' },
-  { name: 'purchases', label: 'Pembelian', path: '/purchases', icon: TruckIcon, permission: 'view_purchases' },
+  {
+    name: 'penjualan',
+    label: 'Penjualan',
+    icon: ShoppingCartIcon,
+    permission: 'view_sales',
+    children: [
+      { name: 'sales', label: 'Daftar Penjualan', path: '/sales', icon: ListBulletIcon, permission: 'view_sales' },
+      { name: 'sale-returns', label: 'Retur Penjualan', path: '/sale-returns', icon: ArrowPathIcon, permission: 'view_sales' },
+    ],
+  },
+  {
+    name: 'pembelian',
+    label: 'Pembelian',
+    icon: TruckIcon,
+    permission: 'view_purchases',
+    children: [
+      { name: 'purchases', label: 'Daftar Pembelian', path: '/purchases', icon: ListBulletIcon, permission: 'view_purchases' },
+      { name: 'purchase-returns', label: 'Retur Pembelian', path: '/purchase-returns', icon: ArrowPathIcon, permission: 'view_purchases' },
+    ],
+  },
   {
     name: 'kelola-produk',
     label: 'Kelola Produk',
@@ -197,6 +265,12 @@ const menuItems = [
 ]
 
 const expandedMenus = ref([])
+
+/** Dashboard (path '/') hanya aktif di halaman root; menu lain aktif jika path diawali path menu */
+const isMenuActive = (item) => {
+  if (item.path === '/') return route.path === '/'
+  return route.path.startsWith(item.path)
+}
 
 const toggleMenu = (name) => {
   const idx = expandedMenus.value.indexOf(name)

@@ -58,7 +58,7 @@
 
         <div>
           <label class="label">Jumlah Dibayar</label>
-          <input v-model.number="form.paid" type="number" step="1000" required min="0"
+          <input v-model.number="form.paid" type="number" step="1" required min="0"
             class="input text-xl font-medium" />
           <p v-if="isCredit && form.paid < total" class="text-xs text-gray-500 mt-1">
             Bayar sebagian atau 0 untuk utang penuh
@@ -215,7 +215,7 @@ const handlePayment = async () => {
       customer_name: cartStore.customer.name,
       customer_phone: cartStore.customer.phone,
       customer_address: cartStore.customer.address || null,
-      sale_date: new Date().toISOString().split('T')[0],
+      sale_date: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })(),
       subtotal: cartStore.subtotal,
       tax: cartStore.taxAmount,
       discount: cartStore.discount,

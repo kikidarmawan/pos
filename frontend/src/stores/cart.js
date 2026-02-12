@@ -37,13 +37,14 @@ export const useCartStore = defineStore("cart", {
   actions: {
     addItem(product, unit, productUnit) {
       const existingItem = this.items.find(
-        (item) => item.product.id === product.id && item.unit.id === unit.id
+        (item) => item.product.id === product.id && item.unit.id === unit.id,
       );
 
       if (existingItem) {
         existingItem.quantity++;
         const base = existingItem.quantity * existingItem.price;
-        const totalDiscount = (existingItem.discount || 0) * existingItem.quantity;
+        const totalDiscount =
+          (existingItem.discount || 0) * existingItem.quantity;
         existingItem.subtotal = base - totalDiscount;
       } else {
         const price = productUnit?.selling_price || product.base_price;

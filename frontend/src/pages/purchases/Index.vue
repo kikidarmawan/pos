@@ -60,9 +60,12 @@
                   {{ purchase.status }}
                 </span>
               </td>
-              <td>
+              <td class="flex items-center gap-2">
+                <button type="button" @click="openDetail(purchase.id)" class="btn btn-sm btn-outline">
+                  Detail
+                </button>
                 <button v-if="purchase.status === 'received' && hasPermission('cancel_purchases')"
-                  @click="cancelPurchase(purchase)" class="text-red-600 hover:text-red-800">
+                  @click="cancelPurchase(purchase)" class="text-red-600 hover:text-red-800 text-sm">
                   Batalkan
                 </button>
               </td>
@@ -71,12 +74,21 @@
         </table>
       </div>
     </div>
+
+    <!-- Detail Modal -->
+    <PurchaseDetailModal
+      v-if="selectedPurchaseId"
+      :purchase-id="selectedPurchaseId"
+      @close="selectedPurchaseId = null"
+      @updated="loadPurchases"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import PurchaseDetailModal from '@/components/PurchaseDetailModal.vue'
 import { useToast } from 'vue-toastification'
 import api from '@/utils/axios'
 import { formatCurrency, formatDate } from '@/utils/format'
@@ -87,6 +99,11 @@ const toast = useToast()
 
 const purchases = ref({ data: [] })
 const suppliers = ref([])
+const selectedPurchaseId = ref(null)
+
+const openDetail = (id) => {
+  selectedPurchaseId.value = id
+}
 
 const filters = ref({
   search: '',
