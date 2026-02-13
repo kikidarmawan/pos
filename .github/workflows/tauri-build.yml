@@ -62,5 +62,24 @@ jobs:
           projectPath: frontend
           tauriScript: npm run tauri
           args: ${{ matrix.args }}
-          uploadWorkflowArtifacts: true
-          workflowArtifactNamePattern: "[name]-[version]-[platform]-[arch]"
+
+      - name: Upload Windows bundle
+        if: matrix.platform == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: pos-windows-x64
+          path: frontend/src-tauri/target/release/bundle/
+
+      - name: Upload macOS bundle
+        if: matrix.platform == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: pos-macos-arm64
+          path: frontend/src-tauri/target/aarch64-apple-darwin/release/bundle/
+
+      - name: Upload Linux bundle
+        if: matrix.platform == 'ubuntu-22.04'
+        uses: actions/upload-artifact@v4
+        with:
+          name: pos-linux-x64
+          path: frontend/src-tauri/target/release/bundle/
