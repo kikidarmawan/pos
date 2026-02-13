@@ -89,9 +89,9 @@
           <button @click="$emit('close')" class="btn btn-secondary">
             Batal
           </button>
-          <button @click="print" class="btn btn-primary">
+          <button @click="print" :disabled="printing" class="btn btn-primary">
             <PrinterIcon class="w-5 h-5 mr-2" />
-            Cetak
+            {{ isTauri() ? 'Simpan ke PDF' : 'Cetak' }}
           </button>
         </div>
       </div>
@@ -101,9 +101,14 @@
 
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { useToast } from 'vue-toastification'
 import { XMarkIcon, PrinterIcon } from '@heroicons/vue/24/outline'
 import JsBarcode from 'jsbarcode'
+import html2pdf from 'html2pdf.js'
 import { formatCurrency } from '@/utils/format'
+import { isTauri } from '@/utils/printReceipt'
+
+const toast = useToast()
 
 const props = defineProps({
   product: {
@@ -211,109 +216,84 @@ const generateBarcodes = async () => {
   }
 }
 
-const print = () => {
+const PRINT_ZONE_ID = 'barcode-print-zone'
+const PRINT_STYLE_ID = 'barcode-print-style'
+const printing = ref(false)
+
+const cols = () => getGridClass().replace('grid-cols-', '') || '3'
+
+const print = async () => {
   if (displayProducts.value.length === 0) return
-  const printContent = document.getElementById('print-area')?.innerHTML || ''
-  const printWindow = window.open('', '_blank')
 
-  printWindow.document.write(`
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <title>Cetak Barcode - ${isBulkMode.value ? displayProducts.value.length + ' Produk' : (props.product?.name || '')}</title>
-        <style>
-          @media print {
-            @page {
-              margin: 10mm;
-              size: auto;
-            }
-            body {
-              margin: 0;
-              padding: 0;
-            }
-          }
-          body {
-            font-family: Arial, sans-serif;
-          }
-          .grid {
-            display: grid;
-            gap: 8px;
-            grid-template-columns: repeat(${getGridClass().replace('grid-cols-', '')}, 1fr);
-          }
-          .label {
-            page-break-inside: avoid;
-            break-inside: avoid;
-          }
-          ${settings.value.type === 'barcode-only' ? `
-            .label {
-              height: 60px;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              background: white;
-            }
-          ` : `
-            .label {
-              border: 1px solid #ccc;
-              padding: 8px;
-              background: white;
-              display: flex;
-              flex-direction: column;
-              ${settings.value.type === 'label-small' ? 'min-height: 120px;' : ''}
-              ${settings.value.type === 'label-medium' ? 'min-height: 160px;' : ''}
-              ${settings.value.type === 'label-large' ? 'min-height: 220px;' : ''}
-            }
-          `}
-          .barcode {
-            max-width: 100%;
-            height: auto;
-          }
-          .text-center {
-            text-align: center;
-          }
-          .font-bold {
-            font-weight: bold;
-          }
-          .truncate {
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-          }
-          .price {
-            color: #2563eb;
-            font-size: 14px;
-            font-weight: bold;
-            margin-top: 8px;
-          }
-          .code {
-            font-size: 10px;
-            color: #666;
-            margin-bottom: 4px;
-          }
-          .name {
-            font-size: 12px;
-            margin-bottom: 4px;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="grid">
-          ${printContent}
-        </div>
-        <script>
-          window.onload = function() {
-            window.print();
-            window.onafterprint = function() {
-              window.close();
-            }
-          }
-        <\/script>
-</body>
+  const printArea = document.getElementById('print-area')
+  if (!printArea) return
 
-</html>
-`)
+  const numCols = cols()
+  const printContent = printArea.innerHTML
 
-printWindow.document.close()
+  // Di Tauri: simpan langsung ke PDF (unduh)
+  if (isTauri()) {
+    printing.value = true
+    try {
+      const filename = `barcode-label-${new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '')}.pdf`
+      await html2pdf().set({
+        margin: 8,
+        filename,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      }).from(printArea).save()
+      toast.success('PDF berhasil disimpan')
+      emit('close')
+    } catch (e) {
+      console.error('Barcode PDF failed:', e)
+      toast.error('Gagal menyimpan PDF')
+    } finally {
+      printing.value = false
+    }
+    return
+  }
+
+  // Browser: window.print()
+  printInCurrentWindow(printContent, numCols)
+}
+
+/** Cetak di jendela saat ini (append zone ke body, lalu window.print) */
+function printInCurrentWindow(printContent, numCols) {
+  document.getElementById(PRINT_ZONE_ID)?.remove()
+  document.getElementById(PRINT_STYLE_ID)?.remove()
+
+  const zone = document.createElement('div')
+  zone.id = PRINT_ZONE_ID
+  zone.className = 'grid gap-4 ' + getGridClass()
+  zone.style.cssText = `display: grid; gap: 8px; grid-template-columns: repeat(${numCols}, 1fr);`
+  zone.innerHTML = printContent
+
+  const style = document.createElement('style')
+  style.id = PRINT_STYLE_ID
+  style.textContent = `
+    @media screen { #${PRINT_ZONE_ID} { display: none !important; } }
+    @media print {
+      body * { visibility: hidden !important; }
+      #${PRINT_ZONE_ID}, #${PRINT_ZONE_ID} * { visibility: visible !important; }
+      #${PRINT_ZONE_ID} {
+        position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important;
+        display: grid !important; grid-template-columns: repeat(${numCols}, 1fr) !important;
+        gap: 8px !important; padding: 10mm; background: white;
+      }
+      #${PRINT_ZONE_ID} .barcode { max-width: 100%; height: auto; }
+    }
+  `
+  document.body.appendChild(zone)
+  document.head.appendChild(style)
+
+  const cleanup = () => {
+    document.getElementById(PRINT_ZONE_ID)?.remove()
+    document.getElementById(PRINT_STYLE_ID)?.remove()
+    window.onafterprint = null
+  }
+  window.onafterprint = cleanup
+  window.print()
 }
 
 onMounted(() => {

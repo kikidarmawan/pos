@@ -18,14 +18,14 @@
     <!-- Filters -->
     <div class="card mb-6">
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <input v-model="filters.search" @input="loadProducts" type="text" placeholder="Cari produk..." class="input" />
-        <select v-model="filters.category_id" @change="loadProducts" class="input">
+        <input v-model="filters.search" @input="() => loadProducts(1)" type="text" placeholder="Cari produk..." class="input" />
+        <select v-model="filters.category_id" @change="() => loadProducts(1)" class="input">
           <option value="">Semua Kategori</option>
           <option v-for="cat in categories" :key="cat.id" :value="cat.id">
             {{ cat.name }}
           </option>
         </select>
-        <select v-model="filters.is_active" @change="loadProducts" class="input">
+        <select v-model="filters.is_active" @change="() => loadProducts(1)" class="input">
           <option value="">Semua Status</option>
           <option value="1">Aktif</option>
           <option value="0">Tidak Aktif</option>
@@ -44,9 +44,6 @@
       <!-- Empty State -->
       <div v-else-if="!products.data || products.data.length === 0" class="p-8 text-center">
         <p class="text-gray-600 mb-2">Belum ada produk.</p>
-        <p class="text-xs text-gray-400 mb-4">
-          (Data: {{ products.data ? 'array with ' + products.data.length + ' items' : 'null/undefined' }})
-        </p>
         <button v-if="hasPermission('create_products')" @click="openModal()" class="btn btn-primary mt-4">
           <PlusIcon class="w-5 h-5 mr-2" />
           Tambah Produk Pertama
@@ -127,18 +124,55 @@
       </div>
 
       <!-- Pagination -->
-      <div v-if="products.data?.length && products.links?.length" class="px-6 py-4 border-t">
-        <div class="flex justify-between items-center">
-          <span class="text-sm text-gray-700">
-            Menampilkan {{ products.from || 0 }} - {{ products.to || 0 }} dari {{ products.total || 0 }}
-          </span>
-          <div class="flex gap-2">
-            <button v-for="(page, index) in products.links" :key="index" @click="changePage(page?.url)"
-              :disabled="!page?.url" :class="[
-                'px-3 py-1 rounded text-sm',
-                page?.active ? 'bg-primary-600 text-white' : 'bg-gray-200 text-gray-700',
-                !page?.url && 'opacity-50 cursor-not-allowed'
-              ]" v-html="page?.label || ''" />
+      <div v-if="products.data?.length && paginationMeta.total" class="px-6 py-4 border-t bg-gray-50">
+        <div class="flex flex-col sm:flex-row gap-4 justify-between items-center">
+          <div class="flex items-center gap-4 flex-wrap">
+            <span class="text-sm text-gray-700">
+              Menampilkan {{ paginationMeta.from }} - {{ paginationMeta.to }} dari {{ paginationMeta.total }} produk
+            </span>
+            <div class="flex items-center gap-2">
+              <label class="text-sm text-gray-600">Per halaman:</label>
+              <select v-model.number="perPage" @change="loadProducts(1)" class="input py-1.5 text-sm w-20">
+                <option :value="10">10</option>
+                <option :value="15">15</option>
+                <option :value="25">25</option>
+                <option :value="50">50</option>
+              </select>
+            </div>
+          </div>
+          <div class="flex items-center gap-1">
+            <button
+              type="button"
+              :disabled="paginationMeta.current_page <= 1"
+              @click="goToPage(paginationMeta.current_page - 1)"
+              class="px-3 py-1.5 rounded text-sm font-medium border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Sebelumnya
+            </button>
+            <template v-for="n in pageNumbers" :key="n">
+              <button
+                v-if="n !== '...'"
+                type="button"
+                @click="goToPage(n)"
+                :class="[
+                  'min-w-[2.25rem] px-3 py-1.5 rounded text-sm font-medium border',
+                  n === paginationMeta.current_page
+                    ? 'bg-primary-600 border-primary-600 text-white'
+                    : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                ]"
+              >
+                {{ n }}
+              </button>
+              <span v-else class="px-2 py-1.5 text-gray-400">...</span>
+            </template>
+            <button
+              type="button"
+              :disabled="paginationMeta.current_page >= paginationMeta.last_page"
+              @click="goToPage(paginationMeta.current_page + 1)"
+              class="px-3 py-1.5 rounded text-sm font-medium border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Selanjutnya
+            </button>
           </div>
         </div>
       </div>
@@ -166,7 +200,7 @@ import BarcodePrintModal from '@/components/BarcodePrintModal.vue'
 const authStore = useAuthStore()
 const toast = useToast()
 
-const products = ref({ data: [], links: [] })
+const products = ref({ data: [], meta: {}, links: {} })
 const categories = ref([])
 const units = ref([])
 const showModal = ref(false)
@@ -176,6 +210,25 @@ const showBarcodeModal = ref(false)
 const selectedBarcodeProduct = ref(null)
 const selectedBarcodeProducts = ref([])
 const selectedProducts = ref([])
+const perPage = ref(15)
+
+const paginationMeta = computed(() => ({
+  current_page: products.value.meta?.current_page ?? 1,
+  last_page: products.value.meta?.last_page ?? 1,
+  from: products.value.meta?.from ?? 0,
+  to: products.value.meta?.to ?? 0,
+  total: products.value.meta?.total ?? 0,
+  per_page: products.value.meta?.per_page ?? 15,
+}))
+
+const pageNumbers = computed(() => {
+  const cur = paginationMeta.value.current_page
+  const last = paginationMeta.value.last_page
+  if (last <= 7) return Array.from({ length: last }, (_, i) => i + 1)
+  if (cur <= 4) return [1, 2, 3, 4, 5, '...', last]
+  if (cur >= last - 3) return [1, '...', last - 4, last - 3, last - 2, last - 1, last]
+  return [1, '...', cur - 1, cur, cur + 1, '...', last]
+})
 
 const isAllSelected = computed(() => {
   const data = products.value.data || []
@@ -207,36 +260,33 @@ const toggleSelectAll = () => {
 const filters = ref({
   search: '',
   category_id: '',
-  is_active: ''
+  is_active: '',
 })
 
 const hasPermission = (permission) => authStore.hasPermission(permission)
 
-const loadProducts = async () => {
+const loadProducts = async (page = 1) => {
   loading.value = true
   try {
-    const params = { ...filters.value }
-    console.log('Loading products with params:', params)
-    const response = await api.get('/products', { params })
-    console.log('Products API Response:', response.data)
-    console.log('Products data array:', response.data.data)
-    console.log('Total products:', response.data.data?.length)
-
-    // Set products data
-    products.value = response.data
-
-    // Log first product for debugging
-    if (response.data.data && response.data.data.length > 0) {
-      console.log('First product sample:', response.data.data[0])
+    const params = {
+      ...filters.value,
+      per_page: perPage.value,
+      page,
     }
+    const response = await api.get('/products', { params })
+    products.value = response.data
   } catch (error) {
     console.error('Error loading products:', error)
-    console.error('Error response:', error.response)
     toast.error('Gagal memuat produk: ' + (error.response?.data?.message || error.message))
-    products.value = { data: [], links: [] }
+    products.value = { data: [], meta: {}, links: {} }
   } finally {
     loading.value = false
   }
+}
+
+const goToPage = (page) => {
+  if (page < 1 || page > paginationMeta.value.last_page) return
+  loadProducts(page)
 }
 
 const loadCategories = async () => {
@@ -296,26 +346,16 @@ const deleteProduct = async (product) => {
   try {
     await api.delete(`/products/${product.id}`)
     toast.success('Produk berhasil dihapus')
-    loadProducts()
+    const cur = paginationMeta.value.current_page
+    const dataLen = products.value.data?.length ?? 0
+    if (dataLen <= 1 && cur > 1) {
+      loadProducts(cur - 1)
+    } else {
+      loadProducts(cur)
+    }
   } catch (error) {
     toast.error('Gagal menghapus produk')
   }
-}
-
-const changePage = (url) => {
-  if (!url) return
-  loading.value = true
-  api.get(url)
-    .then((response) => {
-      products.value = response.data
-    })
-    .catch((error) => {
-      console.error('Error changing page:', error)
-      toast.error('Gagal memuat halaman')
-    })
-    .finally(() => {
-      loading.value = false
-    })
 }
 
 onMounted(() => {

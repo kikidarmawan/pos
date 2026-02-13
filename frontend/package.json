@@ -9,10 +9,10 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build --ci false",
-    "tauri:build:mac": "tauri build --ci false --target universal-apple-darwin",
-    "tauri:build:win": "tauri build --ci false --target x86_64-pc-windows-msvc",
-    "tauri:build:linux": "tauri build --ci false --target x86_64-unknown-linux-gnu"
+    "tauri:build": "tauri build",
+    "tauri:build:mac": "tauri build --target aarch64-apple-darwin",
+    "tauri:build:win": "node -e \"if (process.platform !== 'win32') { console.error('Build Windows hanya bisa dijalankan di mesin Windows. Gunakan PC Windows atau CI (mis. GitHub Actions).'); process.exit(1); }\" && tauri build --target x86_64-pc-windows-msvc",
+    "tauri:build:linux": "tauri build --target x86_64-unknown-linux-gnu"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",
