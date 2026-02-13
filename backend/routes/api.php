@@ -49,6 +49,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Products
     Route::apiResource('products', ProductController::class);
+    Route::post('products/{product}/update-with-file', [ProductController::class, 'update'])->name('products.update-with-file');
     Route::get('products/barcode/search', [ProductController::class, 'searchBarcode']);
 
     // Purchases

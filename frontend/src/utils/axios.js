@@ -17,6 +17,10 @@ api.interceptors.request.use(
     if (authStore.token) {
       config.headers.Authorization = `Bearer ${authStore.token}`;
     }
+    // Saat kirim FormData, jangan pakai Content-Type: application/json agar browser set multipart/form-data + boundary
+    if (config.data instanceof FormData) {
+      delete config.headers["Content-Type"];
+    }
     return config;
   },
   (error) => {

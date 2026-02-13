@@ -26,6 +26,7 @@ class ProductResource extends JsonResource
             'minimum_stock' => $this->minimum_stock,
             'is_active' => $this->is_active,
             'total_stock' => $this->total_stock ?? 0,
+            'image' => $this->image ? asset('storage/' . $this->image) : null,
 
             // Relationships in snake_case for frontend consistency
             'category' => $this->whenLoaded('category'),

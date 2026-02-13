@@ -87,8 +87,10 @@
         <div v-for="product in products" :key="product.id" @click="openUnitSelector(product)"
           class="card cursor-pointer hover:shadow-lg transition-shadow duration-200 p-4">
           <div class="text-center">
-            <div class="w-16 h-16 mx-auto mb-2 bg-gray-200 rounded-lg flex items-center justify-center">
-              <CubeIcon class="w-8 h-8 text-gray-400" />
+            <div class="w-16 h-16 mx-auto mb-2 bg-gray-200 rounded-lg flex items-center justify-center overflow-hidden">
+              <img v-if="product.image" :src="product.image" :alt="product.name"
+                class="w-full h-full object-cover" />
+              <CubeIcon v-else class="w-8 h-8 text-gray-400" />
             </div>
             <h3 class="font-medium text-sm mb-1 line-clamp-2">{{ product.name }}</h3>
             <p class="text-xs text-gray-500 mb-2">{{ product.code }}</p>
@@ -117,12 +119,17 @@
         <!-- Cart Items - scrollable -->
         <div class="space-y-2 mb-4 flex-1 min-h-0 overflow-y-auto overscroll-contain">
           <div v-for="(item, index) in cartStore.items" :key="index" class="bg-gray-50 rounded-lg p-3">
-            <div class="flex justify-between items-start mb-2">
-              <div class="flex-1">
+            <div class="flex justify-between items-start gap-2 mb-2">
+              <div class="w-10 h-10 shrink-0 rounded-lg bg-gray-200 overflow-hidden flex items-center justify-center">
+                <img v-if="item.product?.image" :src="item.product.image" :alt="item.product.name"
+                  class="w-full h-full object-cover" />
+                <CubeIcon v-else class="w-5 h-5 text-gray-400" />
+              </div>
+              <div class="flex-1 min-w-0">
                 <h4 class="font-medium text-sm">{{ item.product.name }}</h4>
                 <p class="text-xs text-gray-500">{{ item.unit.name }}</p>
               </div>
-              <button @click="cartStore.removeItem(index)" class="text-red-600 hover:text-red-800">
+              <button @click="cartStore.removeItem(index)" class="text-red-600 hover:text-red-800 shrink-0">
                 <XMarkIcon class="w-5 h-5" />
               </button>
             </div>
@@ -232,7 +239,18 @@
     <!-- Unit Selector Modal -->
     <div v-if="showUnitSelector" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-        <h3 class="text-xl font-bold mb-4">Pilih Satuan</h3>
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-14 h-14 shrink-0 rounded-lg bg-gray-200 overflow-hidden flex items-center justify-center">
+            <img v-if="selectedProduct?.image" :src="selectedProduct.image" :alt="selectedProduct?.name"
+              class="w-full h-full object-cover" />
+            <CubeIcon v-else class="w-7 h-7 text-gray-400" />
+          </div>
+          <div class="min-w-0 flex-1">
+            <h3 class="text-xl font-bold">{{ selectedProduct?.name }}</h3>
+            <p class="text-sm text-gray-500">{{ selectedProduct?.code }}</p>
+          </div>
+        </div>
+        <p class="text-sm text-gray-600 mb-3">Pilih satuan jual:</p>
         <div class="space-y-2">
           <button v-for="pu in (selectedProduct?.product_units || selectedProduct?.productUnits || [])" :key="pu.id" @click="addToCart(pu)"
             class="w-full p-4 text-left border-2 rounded-lg hover:border-primary-600 hover:bg-primary-50 transition-colors">

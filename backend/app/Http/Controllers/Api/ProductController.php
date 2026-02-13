@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\ProductUnit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class ProductController extends Controller
 {
@@ -40,6 +41,8 @@ class ProductController extends Controller
 
     public function store(Request $request)
     {
+        $request->merge(['units' => $this->parseUnits($request->units)]);
+
         $validated = $request->validate([
             'category_id' => 'required|exists:categories,id',
             'code' => 'required|string|unique:products,code',
@@ -58,8 +61,34 @@ class ProductController extends Controller
             'units.*.is_default' => 'nullable|boolean',
         ]);
 
+        $units = $validated['units'];
+
         DB::beginTransaction();
         try {
+            $imagePath = null;
+            if ($request->hasFile('image')) {
+                $file = $request->file('image');
+                if (!$file->isValid()) {
+                    return response()->json([
+                        'message' => 'File gambar tidak valid.',
+                        'errors' => ['image' => ['File gambar tidak valid.']],
+                    ], 422);
+                }
+                if ($file->getSize() > 2048 * 1024) {
+                    return response()->json([
+                        'message' => 'Ukuran gambar maksimal 2 MB.',
+                        'errors' => ['image' => ['Ukuran gambar maksimal 2 MB.']],
+                    ], 422);
+                }
+                if (!$this->isAllowedImageExtension($file)) {
+                    return response()->json([
+                        'message' => 'Gambar harus berformat JPG, PNG, atau GIF.',
+                        'errors' => ['image' => ['Gambar harus berformat JPG, PNG, atau GIF.']],
+                    ], 422);
+                }
+                $imagePath = $file->store('products', 'public');
+            }
+
             $product = Product::create([
                 'category_id' => $validated['category_id'],
                 'code' => $validated['code'],
@@ -70,10 +99,11 @@ class ProductController extends Controller
                 'base_price' => $validated['base_price'],
                 'minimum_stock' => $validated['minimum_stock'] ?? 0,
                 'is_active' => $validated['is_active'],
+                'image' => $imagePath,
             ]);
 
             // Save product units (multi-satuan)
-            foreach ($validated['units'] as $unitData) {
+            foreach ($units as $unitData) {
                 ProductUnit::create([
                     'product_id' => $product->id,
                     'unit_id' => $unitData['unit_id'],
@@ -111,6 +141,8 @@ class ProductController extends Controller
 
     public function update(Request $request, Product $product)
     {
+        $request->merge(['units' => $this->parseUnits($request->units)]);
+
         $validated = $request->validate([
             'category_id' => 'required|exists:categories,id',
             'code' => 'required|string|unique:products,code,' . $product->id,
@@ -121,6 +153,7 @@ class ProductController extends Controller
             'base_price' => 'required|numeric|min:0',
             'minimum_stock' => 'nullable|numeric|min:0',
             'is_active' => 'required|boolean',
+            'remove_image' => 'nullable|boolean',
             'units' => 'required|array|min:1',
             'units.*.unit_id' => 'required|exists:units,id',
             'units.*.conversion_factor' => 'required|numeric|min:0.001',
@@ -129,8 +162,42 @@ class ProductController extends Controller
             'units.*.is_default' => 'nullable|boolean',
         ]);
 
+        $units = $validated['units'];
+
         DB::beginTransaction();
         try {
+            $imagePath = $product->image;
+            if ($request->hasFile('image')) {
+                $file = $request->file('image');
+                if (!$file->isValid()) {
+                    return response()->json([
+                        'message' => 'File gambar tidak valid.',
+                        'errors' => ['image' => ['File gambar tidak valid.']],
+                    ], 422);
+                }
+                if ($file->getSize() > 2048 * 1024) {
+                    return response()->json([
+                        'message' => 'Ukuran gambar maksimal 2 MB.',
+                        'errors' => ['image' => ['Ukuran gambar maksimal 2 MB.']],
+                    ], 422);
+                }
+                if (!$this->isAllowedImageExtension($file)) {
+                    return response()->json([
+                        'message' => 'Gambar harus berformat JPG, PNG, atau GIF.',
+                        'errors' => ['image' => ['Gambar harus berformat JPG, PNG, atau GIF.']],
+                    ], 422);
+                }
+                if ($product->image && Storage::disk('public')->exists($product->image)) {
+                    Storage::disk('public')->delete($product->image);
+                }
+                $imagePath = $request->file('image')->store('products', 'public');
+            } elseif ($request->boolean('remove_image') && $product->image) {
+                if (Storage::disk('public')->exists($product->image)) {
+                    Storage::disk('public')->delete($product->image);
+                }
+                $imagePath = null;
+            }
+
             $product->update([
                 'category_id' => $validated['category_id'],
                 'code' => $validated['code'],
@@ -141,12 +208,13 @@ class ProductController extends Controller
                 'base_price' => $validated['base_price'],
                 'minimum_stock' => $validated['minimum_stock'] ?? 0,
                 'is_active' => $validated['is_active'],
+                'image' => $imagePath,
             ]);
 
             // Delete old product units and create new ones
             $product->productUnits()->delete();
 
-            foreach ($validated['units'] as $unitData) {
+            foreach ($units as $unitData) {
                 ProductUnit::create([
                     'product_id' => $product->id,
                     'unit_id' => $unitData['unit_id'],
@@ -217,5 +285,28 @@ class ProductController extends Controller
         return response()->json([
             'message' => 'Produk tidak ditemukan',
         ], 404);
+    }
+
+    /**
+     * Check if uploaded file has allowed image extension (by client filename).
+     */
+    private function isAllowedImageExtension($file): bool
+    {
+        $allowed = ['jpg', 'jpeg', 'png', 'gif'];
+        $ext = strtolower($file->getClientOriginalExtension());
+
+        return in_array($ext, $allowed, true);
+    }
+
+    /**
+     * Parse units from request (supports JSON string from FormData).
+     */
+    private function parseUnits($units): array
+    {
+        if (is_string($units)) {
+            $decoded = json_decode($units, true);
+            return is_array($decoded) ? $decoded : [];
+        }
+        return is_array($units) ? $units : [];
     }
 }

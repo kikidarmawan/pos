@@ -59,6 +59,7 @@
                 <input type="checkbox" :checked="isAllSelected" @change="toggleSelectAll"
                   class="rounded border-gray-300 text-primary-600" />
               </th>
+              <th class="whitespace-nowrap w-14">Gambar</th>
               <th class="whitespace-nowrap">Kode</th>
               <th class="whitespace-nowrap">Nama</th>
               <th class="whitespace-nowrap">Kategori</th>
@@ -75,6 +76,11 @@
               <td class="w-12">
                 <input type="checkbox" :checked="selectedProducts.some(p => p.id === product.id)"
                   @change="toggleProduct(product)" class="rounded border-gray-300 text-primary-600" />
+              </td>
+              <td class="w-14">
+                <img v-if="product.image" :src="product.image" :alt="product.name"
+                  class="w-10 h-10 object-cover rounded border border-gray-200" />
+                <span v-else class="inline-flex w-10 h-10 items-center justify-center rounded bg-gray-100 text-gray-400 text-xs">—</span>
               </td>
               <td class="font-mono text-sm">{{ product.code }}</td>
               <td>

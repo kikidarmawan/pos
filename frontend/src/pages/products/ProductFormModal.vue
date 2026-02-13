@@ -37,6 +37,26 @@
           </div>
 
           <div class="md:col-span-2">
+            <label class="label">Gambar Produk</label>
+            <div class="flex flex-wrap items-start gap-4">
+              <div v-if="imagePreviewUrl" class="relative">
+                <img :src="imagePreviewUrl" alt="Preview"
+                  class="w-32 h-32 object-cover rounded-lg border border-gray-200" />
+                <button type="button" @click="clearImage"
+                  class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                  title="Hapus gambar">
+                  <XMarkIcon class="w-4 h-4" />
+                </button>
+              </div>
+              <div class="flex flex-col gap-2">
+                <input ref="fileInputRef" type="file" accept="image/jpeg,image/png,image/jpg,image/gif"
+                  class="input text-sm py-2" @change="onFileChange" />
+                <p class="text-xs text-gray-500">JPG, PNG atau GIF. Maks. 2 MB.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="md:col-span-2">
             <label class="label">Deskripsi</label>
             <textarea v-model="form.description" rows="3" class="input"></textarea>
           </div>
@@ -171,6 +191,10 @@ const props = defineProps({
 const emit = defineEmits(['close', 'saved'])
 const toast = useToast()
 const loading = ref(false)
+const fileInputRef = ref(null)
+const imageFile = ref(null)
+const imagePreviewUrl = ref(null)
+const removeImage = ref(false)
 
 const form = ref({
   category_id: '',
@@ -205,6 +229,26 @@ const setDefaultUnit = (index) => {
   })
 }
 
+function onFileChange(e) {
+  const file = e.target?.files?.[0]
+  if (!file) return
+  if (file.size > 2 * 1024 * 1024) {
+    toast.error('Ukuran gambar maksimal 2 MB')
+    e.target.value = ''
+    return
+  }
+  imageFile.value = file
+  removeImage.value = false
+  imagePreviewUrl.value = URL.createObjectURL(file)
+}
+
+function clearImage() {
+  imageFile.value = null
+  imagePreviewUrl.value = null
+  removeImage.value = true
+  if (fileInputRef.value) fileInputRef.value.value = ''
+}
+
 const handleSubmit = async () => {
   if (form.value.units.length === 0) {
     toast.error('Minimal 1 satuan harus ditambahkan')
@@ -214,32 +258,59 @@ const handleSubmit = async () => {
   loading.value = true
 
   try {
-    // Prepare data as JSON
-    const payload = {
-      category_id: form.value.category_id,
-      code: form.value.code,
-      name: form.value.name,
-      barcode: form.value.barcode || null,
-      description: form.value.description || null,
-      base_unit_id: form.value.base_unit_id,
-      base_price: parseFloat(form.value.base_price),
-      minimum_stock: parseFloat(form.value.minimum_stock) || 0,
-      is_active: form.value.is_active === 1 || form.value.is_active === true,
-      units: form.value.units.map(u => ({
-        unit_id: u.unit_id,
-        conversion_factor: parseFloat(u.conversion_factor),
-        selling_price: parseFloat(u.selling_price),
-        barcode: u.barcode || null,
-        is_default: u.is_default === 1 || u.is_default === true
-      }))
-    }
+    const useFormData = !!imageFile.value || (props.product && removeImage.value)
+    const unitsPayload = form.value.units.map(u => ({
+      unit_id: u.unit_id,
+      conversion_factor: parseFloat(u.conversion_factor),
+      selling_price: parseFloat(u.selling_price),
+      barcode: u.barcode || null,
+      is_default: u.is_default === 1 || u.is_default === true
+    }))
 
-    if (props.product) {
-      await api.put(`/products/${props.product.id}`, payload)
-      toast.success('Produk berhasil diperbarui')
+    if (useFormData) {
+      const fd = new FormData()
+      fd.append('category_id', form.value.category_id)
+      fd.append('code', form.value.code)
+      fd.append('name', form.value.name)
+      fd.append('barcode', form.value.barcode || '')
+      fd.append('description', form.value.description || '')
+      fd.append('base_unit_id', form.value.base_unit_id)
+      fd.append('base_price', form.value.base_price)
+      fd.append('minimum_stock', form.value.minimum_stock ?? 0)
+      fd.append('is_active', form.value.is_active === 1 || form.value.is_active === true ? '1' : '0')
+      fd.append('units', JSON.stringify(unitsPayload))
+      if (imageFile.value) fd.append('image', imageFile.value)
+      if (props.product && removeImage.value) fd.append('remove_image', '1')
+
+      if (props.product) {
+        // POST agar PHP menerima file (PUT tidak mengisi $_FILES)
+        await api.post(`/products/${props.product.id}/update-with-file`, fd)
+        toast.success('Produk berhasil diperbarui')
+      } else {
+        await api.post('/products', fd)
+        toast.success('Produk berhasil ditambahkan')
+      }
     } else {
-      await api.post('/products', payload)
-      toast.success('Produk berhasil ditambahkan')
+      const payload = {
+        category_id: form.value.category_id,
+        code: form.value.code,
+        name: form.value.name,
+        barcode: form.value.barcode || null,
+        description: form.value.description || null,
+        base_unit_id: form.value.base_unit_id,
+        base_price: parseFloat(form.value.base_price),
+        minimum_stock: parseFloat(form.value.minimum_stock) || 0,
+        is_active: form.value.is_active === 1 || form.value.is_active === true,
+        units: unitsPayload
+      }
+      if (props.product && removeImage.value) payload.remove_image = true
+      if (props.product) {
+        await api.put(`/products/${props.product.id}`, payload)
+        toast.success('Produk berhasil diperbarui')
+      } else {
+        await api.post('/products', payload)
+        toast.success('Produk berhasil ditambahkan')
+      }
     }
 
     emit('saved')
@@ -260,7 +331,7 @@ const handleSubmit = async () => {
 }
 
 /** Nilai bulat → tampil tanpa desimal (.000); nilai desimal → dipakai aslinya, tanpa dibulatkan. */
-function normalizeFormNumber (val) {
+function normalizeFormNumber(val) {
   const n = Number(val)
   if (Number.isNaN(n)) return val
   if (Number.isInteger(n)) return n
@@ -286,6 +357,9 @@ onMounted(() => {
         barcode: pu.barcode || '',
         is_default: pu.is_default
       })) || []
+    }
+    if (props.product.image) {
+      imagePreviewUrl.value = props.product.image
     }
   } else {
     addUnit() // Add first unit by default
