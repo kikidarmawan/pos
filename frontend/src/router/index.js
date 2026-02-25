@@ -228,6 +228,12 @@ const routes = [
         name: "Profile",
         component: () => import("@/pages/Profile.vue"),
       },
+      // Setelah pembayaran langganan (redirect dari Midtrans)
+      {
+        path: "subscription/return",
+        name: "SubscriptionReturn",
+        component: () => import("@/pages/subscription/Return.vue"),
+      },
     ],
   },
 ];

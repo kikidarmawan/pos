@@ -24,9 +24,23 @@ class StoreController extends Controller
                 'font_size' => 'normal',
                 'show_store_header' => true,
                 'default_printer_name' => null,
+                'subscription' => null,
             ]);
         }
-        return response()->json($store);
+        $data = $store->toArray();
+        $active = $store->activeSubscription();
+        $data['subscription'] = $active ? [
+            'id' => $active->id,
+            'status' => $active->status,
+            'expires_at' => $active->expires_at?->toIso8601String(),
+            'package' => $active->package ? [
+                'id' => $active->package->id,
+                'name' => $active->package->name,
+                'code' => $active->package->code,
+                'duration_days' => $active->package->duration_days,
+            ] : null,
+        ] : null;
+        return response()->json($data);
     }
 
     /**

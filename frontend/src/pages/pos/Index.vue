@@ -1,208 +1,199 @@
 <template>
   <div ref="posContainerRef" class="pos-page min-h-[calc(100dvh-6rem)] lg:min-h-[calc(100dvh-5rem)] pb-20">
     <div class="pos-page-grid grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 items-stretch min-h-0">
-    <!-- Left: Product Selection -->
-    <div class="lg:col-span-2 space-y-3 min-h-0 flex flex-col overflow-hidden order-2 lg:order-1">
-      <!-- Customer (compact) -->
-      <div class="card p-3">
-        <div class="flex flex-wrap gap-2 items-end">
-          <div class="flex-1 min-w-[140px]">
-            <label class="label text-xs py-0.5">Pelanggan</label>
-            <div class="flex gap-1">
-              <VSelect
-                v-model="selectedCustomer"
-                :options="customers"
-                :reduce="(c) => c"
-                label="name"
-                placeholder="Pilih pelanggan..."
-                :filterable="true"
-                :clearable="true"
-                class="flex-1 vue-select-compact"
-              />
-              <button type="button" @click="showCustomerModal = true" class="btn btn-primary btn-sm shrink-0 p-2"
-                title="Tambah Pelanggan Baru">
-                <PlusIcon class="w-4 h-4" />
-              </button>
+      <!-- Left: Product Selection -->
+      <div class="lg:col-span-2 space-y-3 min-h-0 flex flex-col overflow-hidden order-2 lg:order-1">
+        <!-- Customer (compact) -->
+        <div class="card p-3">
+          <div class="flex flex-wrap gap-2 items-end">
+            <div class="flex-1 min-w-[140px]">
+              <label class="label text-xs py-0.5">Pelanggan</label>
+              <div class="flex gap-1">
+                <VSelect v-model="selectedCustomer" :options="customers" :reduce="(c) => c" label="name"
+                  placeholder="Pilih pelanggan..." :filterable="true" :clearable="true"
+                  class="flex-1 vue-select-compact" />
+                <button type="button" @click="showCustomerModal = true" class="btn btn-primary btn-sm shrink-0 p-2"
+                  title="Tambah Pelanggan Baru">
+                  <PlusIcon class="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            <div class="w-32">
+              <label class="label text-xs py-0.5">Nama</label>
+              <input v-model="cartStore.customer.name" type="text" class="input input-sm py-1.5"
+                :placeholder="selectedCustomer ? '' : 'Walk-in'" />
+            </div>
+            <div class="w-28">
+              <label class="label text-xs py-0.5">No. HP</label>
+              <input v-model="cartStore.customer.phone" type="text" class="input input-sm py-1.5" placeholder="08xxx" />
+            </div>
+            <div class="flex-1 min-w-[120px]">
+              <label class="label text-xs py-0.5">Alamat</label>
+              <input v-model="cartStore.customer.address" type="text" class="input input-sm py-1.5"
+                placeholder="Alamat (opsional)" />
             </div>
           </div>
-          <div class="w-32">
-            <label class="label text-xs py-0.5">Nama</label>
-            <input v-model="cartStore.customer.name" type="text" class="input input-sm py-1.5"
-              :placeholder="selectedCustomer ? '' : 'Walk-in'" />
-          </div>
-          <div class="w-28">
-            <label class="label text-xs py-0.5">No. HP</label>
-            <input v-model="cartStore.customer.phone" type="text" class="input input-sm py-1.5"
-              placeholder="08xxx" />
-          </div>
-          <div class="flex-1 min-w-[120px]">
-            <label class="label text-xs py-0.5">Alamat</label>
-            <input v-model="cartStore.customer.address" type="text" class="input input-sm py-1.5"
-              placeholder="Alamat (opsional)" />
-          </div>
         </div>
-      </div>
 
-      <!-- Cari Produk -->
-      <div class="card">
-        <div class="flex gap-3 items-center">
-          <input v-model="search" @input="searchProducts" type="text" placeholder="Cari produk (nama, kode, barcode)..."
-            class="input flex-1" autofocus />
-          <select v-model="selectedWarehouse" required class="input w-48" @change="loadProducts">
-            <option value="">Pilih Gudang</option>
-            <option v-for="wh in warehouses" :key="wh.id" :value="wh.id">
-              {{ wh.name }}
-            </option>
-          </select>
-          <button type="button" @click="toggleFullscreen"
-            class="p-2.5 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600 hover:text-primary-600 transition-colors shrink-0"
-            :title="isFullscreen ? 'Keluar Fullscreen (ESC)' : 'Fullscreen'">
-            <ArrowsPointingOutIcon v-if="!isFullscreen" class="w-5 h-5" />
-            <ArrowsPointingInIcon v-else class="w-5 h-5" />
-          </button>
-          <button type="button" @click="connectPrinter" :disabled="printerConnecting"
-            class="p-2.5 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600 hover:text-primary-600 transition-colors shrink-0 flex items-center gap-1.5"
-            title="Info cetak struk">
-            <PrinterIcon class="w-5 h-5" :class="printerReady ? 'text-green-600' : ''" />
-            <span v-if="printerReady" class="text-xs text-green-600 hidden sm:inline">Siap</span>
-            <span v-else class="text-xs hidden sm:inline">{{ printerConnecting ? '...' : 'Printer' }}</span>
-          </button>
+        <!-- Cari Produk -->
+        <div class="card">
+          <div class="flex gap-3 items-center">
+            <input v-model="search" @input="searchProducts" type="text"
+              placeholder="Cari produk (nama, kode, barcode)..." class="input flex-1" autofocus />
+            <select v-model="selectedWarehouse" required class="input w-48" @change="loadProducts">
+              <option value="">Pilih Gudang</option>
+              <option v-for="wh in warehouses" :key="wh.id" :value="wh.id">
+                {{ wh.name }}
+              </option>
+            </select>
+            <button type="button" @click="toggleFullscreen"
+              class="p-2.5 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600 hover:text-primary-600 transition-colors shrink-0"
+              :title="isFullscreen ? 'Keluar Fullscreen (ESC)' : 'Fullscreen'">
+              <ArrowsPointingOutIcon v-if="!isFullscreen" class="w-5 h-5" />
+              <ArrowsPointingInIcon v-else class="w-5 h-5" />
+            </button>
+            <button type="button" @click="connectPrinter" :disabled="printerConnecting"
+              class="p-2.5 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600 hover:text-primary-600 transition-colors shrink-0 flex items-center gap-1.5"
+              title="Info cetak struk">
+              <PrinterIcon class="w-5 h-5" :class="printerReady ? 'text-green-600' : ''" />
+              <span v-if="printerReady" class="text-xs text-green-600 hidden sm:inline">Siap</span>
+              <span v-else class="text-xs hidden sm:inline">{{ printerConnecting ? '...' : 'Printer' }}</span>
+            </button>
+          </div>
         </div>
-      </div>
 
-      <!-- Products Grid -->
-      <div v-if="loadingProducts" class="grid place-items-center py-16">
-        <div class="text-center">
-          <div class="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600"></div>
-          <p class="mt-2 text-gray-500">Memuat produk...</p>
-        </div>
-      </div>
-      <div v-else-if="!selectedWarehouse" class="py-16 text-center text-gray-500">
-        Pilih gudang untuk menampilkan produk
-      </div>
-      <div v-else-if="products.length === 0" class="py-16 text-center text-gray-500">
-        {{ search ? 'Tidak ada produk ditemukan' : 'Belum ada produk' }}
-      </div>
-      <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 flex-1 min-h-0 overflow-y-auto content-start">
-        <div v-for="product in products" :key="product.id" @click="openUnitSelector(product)"
-          class="card cursor-pointer hover:shadow-lg transition-shadow duration-200 p-4">
+        <!-- Products Grid -->
+        <div v-if="loadingProducts" class="grid place-items-center py-16">
           <div class="text-center">
-            <div class="w-16 h-16 mx-auto mb-2 bg-gray-200 rounded-lg flex items-center justify-center overflow-hidden">
-              <img v-if="product.image" :src="product.image" :alt="product.name"
-                class="w-full h-full object-cover" />
-              <CubeIcon v-else class="w-8 h-8 text-gray-400" />
+            <div class="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-primary-600"></div>
+            <p class="mt-2 text-gray-500">Memuat produk...</p>
+          </div>
+        </div>
+        <div v-else-if="!selectedWarehouse" class="py-16 text-center text-gray-500">
+          Pilih gudang untuk menampilkan produk
+        </div>
+        <div v-else-if="products.length === 0" class="py-16 text-center text-gray-500">
+          {{ search ? 'Tidak ada produk ditemukan' : 'Belum ada produk' }}
+        </div>
+        <div v-else
+          class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 flex-1 min-h-0 overflow-y-auto content-start">
+          <div v-for="product in products" :key="product.id" @click="openUnitSelector(product)"
+            class="card cursor-pointer hover:shadow-lg transition-shadow duration-200 p-4">
+            <div class="text-center">
+              <div
+                class="w-16 h-16 mx-auto mb-2 bg-gray-200 rounded-lg flex items-center justify-center overflow-hidden">
+                <img v-if="product.image" :src="product.image" :alt="product.name" class="w-full h-full object-cover" />
+                <CubeIcon v-else class="w-8 h-8 text-gray-400" />
+              </div>
+              <h3 class="font-medium text-sm mb-1 line-clamp-2">{{ product.name }}</h3>
+              <p class="text-xs text-gray-500 mb-2">{{ product.code }}</p>
+              <p class="text-xs text-gray-500 mb-1">Satuan: {{ product.base_unit?.name || product.baseUnit?.name || '-'
+                }}</p>
+              <p class="font-bold text-primary-600">{{ formatCurrency(product.base_price) }}</p>
+              <p class="text-xs"
+                :class="(product.total_stock || 0) < (product.minimum_stock || 0) ? 'text-red-600 font-medium' : 'text-gray-500'">
+                Stok: {{ formatStock(product.total_stock ?? 0) }} {{ product.base_unit?.name || product.baseUnit?.name
+                || '' }}
+              </p>
             </div>
-            <h3 class="font-medium text-sm mb-1 line-clamp-2">{{ product.name }}</h3>
-            <p class="text-xs text-gray-500 mb-2">{{ product.code }}</p>
-            <p class="text-xs text-gray-500 mb-1">Satuan: {{ product.base_unit?.name || product.baseUnit?.name || '-' }}</p>
-            <p class="font-bold text-primary-600">{{ formatCurrency(product.base_price) }}</p>
-            <p class="text-xs" :class="(product.total_stock || 0) < (product.minimum_stock || 0) ? 'text-red-600 font-medium' : 'text-gray-500'">
-              Stok: {{ formatStock(product.total_stock ?? 0) }} {{ product.base_unit?.name || product.baseUnit?.name || '' }}
-            </p>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Right: Cart - sticky, height accounts for action bar at bottom, responsive -->
-    <div class="lg:col-span-1 flex flex-col min-h-[320px] sm:min-h-[360px] max-h-[calc(55dvh-5rem)] sm:max-h-[calc(60dvh-5rem)] lg:max-h-none lg:h-[calc(100dvh-12rem)] lg:sticky lg:top-20 order-1 lg:order-2 lg:min-h-0">
-      <div class="card flex flex-col flex-1 min-h-0 overflow-hidden h-full">
-        <div class="flex items-center justify-between mb-4 shrink-0">
-          <h2 class="text-xl font-bold">Keranjang</h2>
-          <button v-if="isFullscreen" type="button" @click="toggleFullscreen"
-            class="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600 hover:text-primary-600 transition-colors"
-            title="Keluar Fullscreen">
-            <ArrowsPointingInIcon class="w-5 h-5" />
-          </button>
-        </div>
+      <!-- Right: Cart - sticky, height accounts for action bar at bottom, responsive -->
+      <div
+        class="lg:col-span-1 flex flex-col min-h-[320px] sm:min-h-[360px] max-h-[calc(55dvh-5rem)] sm:max-h-[calc(60dvh-5rem)] lg:max-h-none lg:h-[calc(100dvh-12rem)] lg:sticky lg:top-20 order-1 lg:order-2 lg:min-h-0">
+        <div class="card flex flex-col flex-1 min-h-0 overflow-hidden h-full">
+          <div class="flex items-center justify-between mb-4 shrink-0">
+            <h2 class="text-xl font-bold">Keranjang</h2>
+            <button v-if="isFullscreen" type="button" @click="toggleFullscreen"
+              class="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600 hover:text-primary-600 transition-colors"
+              title="Keluar Fullscreen">
+              <ArrowsPointingInIcon class="w-5 h-5" />
+            </button>
+          </div>
 
-        <!-- Cart Items - scrollable -->
-        <div class="space-y-2 mb-4 flex-1 min-h-0 overflow-y-auto overscroll-contain">
-          <div v-for="(item, index) in cartStore.items" :key="index" class="bg-gray-50 rounded-lg p-3">
-            <div class="flex justify-between items-start gap-2 mb-2">
-              <div class="w-10 h-10 shrink-0 rounded-lg bg-gray-200 overflow-hidden flex items-center justify-center">
-                <img v-if="item.product?.image" :src="item.product.image" :alt="item.product.name"
-                  class="w-full h-full object-cover" />
-                <CubeIcon v-else class="w-5 h-5 text-gray-400" />
-              </div>
-              <div class="flex-1 min-w-0">
-                <h4 class="font-medium text-sm">{{ item.product.name }}</h4>
-                <p class="text-xs text-gray-500">{{ item.unit.name }}</p>
-              </div>
-              <button @click="cartStore.removeItem(index)" class="text-red-600 hover:text-red-800 shrink-0">
-                <XMarkIcon class="w-5 h-5" />
-              </button>
-            </div>
-
-            <div class="flex items-center justify-between gap-2">
-              <div class="flex items-center gap-1">
-                <button @click="cartStore.updateQuantity(index, item.quantity - 1)"
-                  class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">
-                  -
-                </button>
-                <input :value="item.quantity" @change="cartStore.updateQuantity(index, parseFloat($event.target.value))"
-                  type="number" step="0.01" class="w-16 text-center border rounded px-2 py-1" />
-                <button @click="cartStore.updateQuantity(index, item.quantity + 1)"
-                  class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">
-                  +
+          <!-- Cart Items - scrollable -->
+          <div class="space-y-2 mb-4 flex-1 min-h-0 overflow-y-auto overscroll-contain">
+            <div v-for="(item, index) in cartStore.items" :key="index" class="bg-gray-50 rounded-lg p-3">
+              <div class="flex justify-between items-start gap-2 mb-2">
+                <div class="w-10 h-10 shrink-0 rounded-lg bg-gray-200 overflow-hidden flex items-center justify-center">
+                  <img v-if="item.product?.image" :src="item.product.image" :alt="item.product.name"
+                    class="w-full h-full object-cover" />
+                  <CubeIcon v-else class="w-5 h-5 text-gray-400" />
+                </div>
+                <div class="flex-1 min-w-0">
+                  <h4 class="font-medium text-sm">{{ item.product.name }}</h4>
+                  <p class="text-xs text-gray-500">{{ item.unit.name }}</p>
+                </div>
+                <button @click="cartStore.removeItem(index)" class="text-red-600 hover:text-red-800 shrink-0">
+                  <XMarkIcon class="w-5 h-5" />
                 </button>
               </div>
-              <div class="text-right">
-                <template v-if="(item.discount || 0) > 0">
-                  <p class="text-xs text-gray-400 line-through">{{ formatCurrency((item.price * item.quantity)) }}</p>
-                  <p class="text-sm font-bold text-green-600">{{ formatCurrency(item.subtotal) }}</p>
-                </template>
-                <template v-else>
-                  <p class="text-sm font-bold">{{ formatCurrency(item.subtotal) }}</p>
-                </template>
-                <p class="text-xs text-gray-500">@{{ formatCurrency(item.price) }}</p>
+
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-1">
+                  <button @click="cartStore.updateQuantity(index, item.quantity - 1)"
+                    class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">
+                    -
+                  </button>
+                  <input :value="item.quantity"
+                    @change="cartStore.updateQuantity(index, parseFloat($event.target.value))" type="number" step="0.01"
+                    class="w-16 text-center border rounded px-2 py-1" />
+                  <button @click="cartStore.updateQuantity(index, item.quantity + 1)"
+                    class="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300">
+                    +
+                  </button>
+                </div>
+                <div class="text-right">
+                  <template v-if="(item.discount || 0) > 0">
+                    <p class="text-xs text-gray-400 line-through">{{ formatCurrency((item.price * item.quantity)) }}</p>
+                    <p class="text-sm font-bold text-green-600">{{ formatCurrency(item.subtotal) }}</p>
+                  </template>
+                  <template v-else>
+                    <p class="text-sm font-bold">{{ formatCurrency(item.subtotal) }}</p>
+                  </template>
+                  <p class="text-xs text-gray-500">@{{ formatCurrency(item.price) }}</p>
+                </div>
+              </div>
+              <div class="mt-2 flex items-center gap-2">
+                <label class="text-xs text-gray-500 whitespace-nowrap">Diskon/qty:</label>
+                <input :value="item.discount ?? 0" @input="cartStore.updateItemDiscount(index, ($event.target).value)"
+                  type="number" step="100" min="0" class="w-24 text-sm border rounded px-2 py-1" placeholder="0"
+                  title="Diskon per satuan" />
+                <span v-if="(item.discount || 0) > 0" class="text-xs text-gray-400">
+                  = {{ formatCurrency((item.discount || 0) * item.quantity) }}
+                </span>
               </div>
             </div>
-            <div class="mt-2 flex items-center gap-2">
-              <label class="text-xs text-gray-500 whitespace-nowrap">Diskon/qty:</label>
-              <input
-                :value="item.discount ?? 0"
-                @input="cartStore.updateItemDiscount(index, ($event.target).value)"
-                type="number"
-                step="100"
-                min="0"
-                class="w-24 text-sm border rounded px-2 py-1"
-                placeholder="0"
-                title="Diskon per satuan"
-              />
-              <span v-if="(item.discount || 0) > 0" class="text-xs text-gray-400">
-                = {{ formatCurrency((item.discount || 0) * item.quantity) }}
-              </span>
+
+            <div v-if="!cartStore.items.length" class="text-center text-gray-500 py-8">
+              Keranjang masih kosong
             </div>
           </div>
 
-          <div v-if="!cartStore.items.length" class="text-center text-gray-500 py-8">
-            Keranjang masih kosong
-          </div>
-        </div>
-
-        <!-- Summary -->
-        <div class="space-y-2 py-4 border-t border-b shrink-0">
-          <div class="flex justify-between text-sm">
-            <span>Subtotal:</span>
-            <span class="font-medium">{{ formatCurrency(cartStore.subtotal) }}</span>
-          </div>
-          <div class="flex justify-between items-center text-sm">
-            <span>Diskon:</span>
-            <input v-model="cartStore.discount" type="number" step="1000"
-              class="w-32 text-right border rounded px-2 py-1" />
-          </div>
-          <div class="flex justify-between items-center text-sm">
-            <span>Pajak (%):</span>
-            <input v-model="cartStore.tax" type="number" step="1" class="w-32 text-right border rounded px-2 py-1" />
-          </div>
-          <div class="flex justify-between text-lg font-bold pt-2">
-            <span>Total:</span>
-            <span class="text-primary-600">{{ formatCurrency(cartStore.total) }}</span>
+          <!-- Summary -->
+          <div class="space-y-2 py-4 border-t border-b shrink-0">
+            <div class="flex justify-between text-sm">
+              <span>Subtotal:</span>
+              <span class="font-medium">{{ formatCurrency(cartStore.subtotal) }}</span>
+            </div>
+            <div class="flex justify-between items-center text-sm">
+              <span>Diskon:</span>
+              <input v-model="cartStore.discount" type="number" step="1000"
+                class="w-32 text-right border rounded px-2 py-1" />
+            </div>
+            <div class="flex justify-between items-center text-sm">
+              <span>Pajak (%):</span>
+              <input v-model="cartStore.tax" type="number" step="1" class="w-32 text-right border rounded px-2 py-1" />
+            </div>
+            <div class="flex justify-between text-lg font-bold pt-2">
+              <span>Total:</span>
+              <span class="text-primary-600">{{ formatCurrency(cartStore.total) }}</span>
+            </div>
           </div>
         </div>
       </div>
-    </div>
     </div>
 
     <!-- Action Buttons - fixed bottom, horizontal, full width (not in sidebar; left-0 when fullscreen) -->
@@ -214,24 +205,25 @@
           <span class="text-xl font-bold text-primary-600">{{ formatCurrency(cartStore.total) }}</span>
         </div>
         <div class="flex flex-wrap gap-2 justify-end">
-        <button @click="openPaymentModal" :disabled="!cartStore.items.length || !selectedWarehouse"
-          class="btn btn-success">
-          <CurrencyDollarIcon class="w-5 h-5 mr-2" />
-          Bayar
-        </button>
-        <button @click="holdTransaction" :disabled="!cartStore.items.length || !selectedWarehouse"
-          class="btn btn-secondary">
-          <ClockIcon class="w-5 h-5 mr-2" />
-          Tahan
-        </button>
-        <button @click="openHeldModal" class="btn btn-outline" :class="heldCount > 0 ? 'border-amber-500 text-amber-600' : ''">
-          <FolderIcon class="w-5 h-5 mr-2" />
-          Transaksi Tertahan ({{ heldCount }})
-        </button>
-        <button @click="cartStore.clear()" :disabled="!cartStore.items.length" class="btn btn-danger">
-          <TrashIcon class="w-5 h-5 mr-2" />
-          Hapus Semua
-        </button>
+          <button @click="openPaymentModal" :disabled="!cartStore.items.length || !selectedWarehouse"
+            class="btn btn-success">
+            <CurrencyDollarIcon class="w-5 h-5 mr-2" />
+            Bayar
+          </button>
+          <button @click="holdTransaction" :disabled="!cartStore.items.length || !selectedWarehouse"
+            class="btn btn-secondary">
+            <ClockIcon class="w-5 h-5 mr-2" />
+            Tahan
+          </button>
+          <button @click="openHeldModal" class="btn btn-outline"
+            :class="heldCount > 0 ? 'border-amber-500 text-amber-600' : ''">
+            <FolderIcon class="w-5 h-5 mr-2" />
+            Transaksi Tertahan ({{ heldCount }})
+          </button>
+          <button @click="cartStore.clear()" :disabled="!cartStore.items.length" class="btn btn-danger">
+            <TrashIcon class="w-5 h-5 mr-2" />
+            Hapus Semua
+          </button>
         </div>
       </div>
     </div>
@@ -252,13 +244,15 @@
         </div>
         <p class="text-sm text-gray-600 mb-3">Pilih satuan jual:</p>
         <div class="space-y-2">
-          <button v-for="pu in (selectedProduct?.product_units || selectedProduct?.productUnits || [])" :key="pu.id" @click="addToCart(pu)"
+          <button v-for="pu in (selectedProduct?.product_units || selectedProduct?.productUnits || [])" :key="pu.id"
+            @click="addToCart(pu)"
             class="w-full p-4 text-left border-2 rounded-lg hover:border-primary-600 hover:bg-primary-50 transition-colors">
             <div class="flex justify-between items-start gap-2">
               <div class="min-w-0 flex-1">
                 <p class="font-medium">{{ pu.unit?.name ?? '' }}</p>
                 <p class="text-sm text-gray-500">Konversi: {{ formatIntegerOrDecimal(pu.conversion_factor) }}x</p>
-                <p class="text-xs mt-1" :class="(stockForUnit(pu) || 0) < (selectedProduct?.minimum_stock ?? 0) ? 'text-red-600 font-medium' : 'text-gray-500'">
+                <p class="text-xs mt-1"
+                  :class="(stockForUnit(pu) || 0) < (selectedProduct?.minimum_stock ?? 0) ? 'text-red-600 font-medium' : 'text-gray-500'">
                   Stok: {{ formatStock(stockForUnit(pu)) }} {{ pu.unit?.name ?? '' }}
                 </p>
               </div>
@@ -292,8 +286,7 @@
             class="shrink-0 w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
             <PrinterIcon class="w-6 h-6 text-red-600" />
           </div>
-          <div v-else
-            class="shrink-0 w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+          <div v-else class="shrink-0 w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
             <PrinterIcon class="w-6 h-6 text-blue-600" />
           </div>
           <div class="flex-1 min-w-0">
@@ -330,10 +323,8 @@
               <XMarkIcon class="w-6 h-6" />
             </button>
           </div>
-          <input v-model="heldSearch" type="text"
-            placeholder="Cari nama, no HP, alamat, atau gudang..."
-            class="input w-full"
-          />
+          <input v-model="heldSearch" type="text" placeholder="Cari nama, no HP, alamat, atau gudang..."
+            class="input w-full" />
         </div>
         <div class="p-4 overflow-y-auto flex-1">
           <div v-if="loadingHolds" class="text-center py-8">Memuat...</div>
@@ -385,10 +376,11 @@
   display: flex !important;
   flex-direction: column !important;
 }
-.pos-page:fullscreen > .pos-page-grid,
-.pos-page:-webkit-full-screen > .pos-page-grid,
-.pos-page:-moz-full-screen > .pos-page-grid,
-.pos-page:-ms-fullscreen > .pos-page-grid {
+
+.pos-page:fullscreen>.pos-page-grid,
+.pos-page:-webkit-full-screen>.pos-page-grid,
+.pos-page:-moz-full-screen>.pos-page-grid,
+.pos-page:-ms-fullscreen>.pos-page-grid {
   flex: 1 1 0 !important;
   min-height: 0 !important;
   overflow: hidden !important;
@@ -402,40 +394,47 @@
   flex-direction: column !important;
   overflow: hidden !important;
 }
-.pos-page:fullscreen > .pos-page-grid {
+
+.pos-page:fullscreen>.pos-page-grid {
   flex: 1 1 0 !important;
   min-height: 0 !important;
   overflow: hidden !important;
 }
+
 .pos-page:-webkit-full-screen {
   background-color: #f9fafb !important;
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
 }
-.pos-page:-webkit-full-screen > .pos-page-grid {
+
+.pos-page:-webkit-full-screen>.pos-page-grid {
   flex: 1 1 0 !important;
   min-height: 0 !important;
   overflow: hidden !important;
 }
+
 .pos-page:-moz-full-screen {
   background-color: #f9fafb !important;
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
 }
-.pos-page:-moz-full-screen > .pos-page-grid {
+
+.pos-page:-moz-full-screen>.pos-page-grid {
   flex: 1 1 0 !important;
   min-height: 0 !important;
   overflow: hidden !important;
 }
+
 .pos-page:-ms-fullscreen {
   background-color: #f9fafb !important;
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
 }
-.pos-page:-ms-fullscreen > .pos-page-grid {
+
+.pos-page:-ms-fullscreen>.pos-page-grid {
   flex: 1 1 0 !important;
   min-height: 0 !important;
   overflow: hidden !important;
@@ -488,7 +487,7 @@ const printerModalContent = ref({ title: '', message: '', type: 'info' })
 const printerReady = ref(false)
 const printerConnecting = ref(false)
 
-const checkPrinterReady = () => {}
+const checkPrinterReady = () => { }
 
 const openPrinterModal = (title, message, type = 'info', confirmMode = false) => {
   printerModalContent.value = { title, message, type, confirmMode }
@@ -639,6 +638,7 @@ const loadHeldTransactions = async () => {
     const res = await api.get('/sale-holds')
     heldTransactions.value = res.data || []
   } catch (e) {
+    console.error('Failed to load held transactions', e)
     toast.error('Gagal memuat transaksi tertahan')
   } finally {
     loadingHolds.value = false

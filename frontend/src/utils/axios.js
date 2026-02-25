@@ -1,5 +1,6 @@
 import axios from "axios";
 import { useAuthStore } from "@/stores/auth";
+import { useSubscriptionStore } from "@/stores/subscription";
 import router from "@/router";
 
 const api = axios.create({
@@ -38,6 +39,10 @@ api.interceptors.response.use(
       const authStore = useAuthStore();
       authStore.logout();
       router.push({ name: "Login" });
+    }
+    if (error.response?.status === 403 && error.response?.data?.code === "subscription_expired") {
+      const subscriptionStore = useSubscriptionStore();
+      subscriptionStore.setExpired();
     }
     return Promise.reject(error);
   }

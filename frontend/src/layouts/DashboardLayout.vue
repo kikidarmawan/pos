@@ -59,6 +59,35 @@
     <div :class="['transition-[padding] duration-300', sidebarOpen ? 'lg:pl-64' : '']">
       <!-- Header -->
       <header class="bg-white shadow-sm sticky top-0 z-40">
+        <!-- Notif langganan mau habis (7 hari lagi), bisa di-close -->
+        <div
+          v-if="subscriptionStore.isExpiringSoon && !subscriptionNotifDismissed"
+          class="flex items-center justify-between gap-2 px-4 py-2 bg-amber-100 text-amber-800 text-sm border-b border-amber-200"
+        >
+          <div class="flex items-center justify-center gap-2 min-w-0 flex-1">
+            <ExclamationTriangleIcon class="w-5 h-5 shrink-0" />
+            <span>
+              Masa langganan akan habis dalam
+              <strong>{{ subscriptionStore.daysLeft }} hari</strong>.
+              <button
+                type="button"
+                @click="subscriptionStore.openPayModal()"
+                class="underline font-semibold hover:no-underline ml-1"
+              >
+                Perpanjang sekarang
+              </button>
+            </span>
+          </div>
+          <button
+            type="button"
+            @click="subscriptionNotifDismissed = true"
+            class="p-1 rounded hover:bg-amber-200/80 text-amber-800 shrink-0"
+            title="Tutup"
+            aria-label="Tutup notifikasi"
+          >
+            <XMarkIcon class="w-5 h-5" />
+          </button>
+        </div>
         <div class="flex items-center justify-between px-4 py-3 gap-4">
           <button
             type="button"
@@ -102,6 +131,9 @@
 
     <!-- Overlay saat sidebar terbuka (mobile) -->
     <div v-if="sidebarOpen" @click="sidebarOpen = false" class="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden" aria-hidden="true"></div>
+
+    <!-- Modal langganan habis (harus bayar untuk lanjut) -->
+    <SubscriptionExpiredModal :show="subscriptionStore.showExpiredModal" />
   </div>
 </template>
 
@@ -109,6 +141,8 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useSubscriptionStore } from '@/stores/subscription'
+import SubscriptionExpiredModal from '@/components/SubscriptionExpiredModal.vue'
 import {
   HomeIcon,
   UserGroupIcon,
@@ -137,17 +171,21 @@ import {
   BanknotesIcon,
   Cog6ToothIcon,
   PrinterIcon,
-  ClockIcon
+  ClockIcon,
+  ExclamationTriangleIcon,
+  XMarkIcon
 } from '@heroicons/vue/24/outline'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+const subscriptionStore = useSubscriptionStore()
 
 /** Versi aplikasi (di-inject dari package.json saat build) */
 const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.0'
 
 const sidebarOpen = ref(true)
+const subscriptionNotifDismissed = ref(false)
 const user = computed(() => authStore.user)
 const dateTime = ref('')
 
@@ -174,6 +212,7 @@ onMounted(() => {
   dateTimeInterval = setInterval(() => {
     dateTime.value = formatNavbarDateTime()
   }, 1000)
+  subscriptionStore.fetchCurrent()
 })
 onUnmounted(() => {
   if (dateTimeInterval) clearInterval(dateTimeInterval)

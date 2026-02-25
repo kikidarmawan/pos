@@ -15,6 +15,25 @@ class Store extends Model
         'show_store_header' => 'boolean',
     ];
 
+    public function subscriptions()
+    {
+        return $this->hasMany(Subscription::class)->latest();
+    }
+
+    public function activeSubscription(): ?Subscription
+    {
+        return $this->subscriptions()
+            ->where('status', Subscription::STATUS_ACTIVE)
+            ->whereNotNull('expires_at')
+            ->where('expires_at', '>', now())
+            ->first();
+    }
+
+    public function hasActiveSubscription(): bool
+    {
+        return $this->activeSubscription() !== null;
+    }
+
     /**
      * Ambil data toko (single store)
      */

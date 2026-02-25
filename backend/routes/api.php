@@ -19,12 +19,17 @@ use App\Http\Controllers\Api\SaleHoldController;
 use App\Http\Controllers\Api\StoreController;
 use App\Http\Controllers\Api\StockController;
 use App\Http\Controllers\Api\ReportController;
+use App\Http\Controllers\Api\PackageController;
+use App\Http\Controllers\Api\SubscriptionController;
 
 // Public routes
 Route::post('/login', [AuthController::class, 'login']);
 
-// Protected routes
-Route::middleware('auth:sanctum')->group(function () {
+// Midtrans webhook (tanpa auth)
+Route::post('/subscriptions/midtrans-notification', [SubscriptionController::class, 'midtransNotification']);
+
+// Protected routes (auth + cek langganan aktif, kecuali store/subscription/packages)
+Route::middleware(['auth:sanctum', 'subscription'])->group(function () {
     // Auth routes
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
@@ -79,6 +84,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // Store (Identitas Toko)
     Route::get('store', [StoreController::class, 'show']);
     Route::put('store', [StoreController::class, 'update']);
+
+    // Langganan & Paket
+    Route::get('packages', [PackageController::class, 'index']);
+    Route::get('subscription/current', [SubscriptionController::class, 'current']);
+    Route::get('subscriptions', [SubscriptionController::class, 'index']);
+    Route::post('subscriptions', [SubscriptionController::class, 'store']);
 
     // Reports
     Route::get('reports/dashboard', [ReportController::class, 'dashboard']);
