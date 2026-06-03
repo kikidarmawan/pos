@@ -36,9 +36,13 @@ api.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
-      const authStore = useAuthStore();
-      authStore.logout();
-      router.push({ name: "Login" });
+      // Skip if this was already the logout request to prevent infinite loop
+      const requestUrl = error.config?.url || '';
+      if (!requestUrl.includes('/logout')) {
+        const authStore = useAuthStore();
+        authStore.logout();
+        router.push({ name: "Login" });
+      }
     }
     if (error.response?.status === 403 && error.response?.data?.code === "subscription_expired") {
       const subscriptionStore = useSubscriptionStore();

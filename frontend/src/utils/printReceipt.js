@@ -387,14 +387,72 @@ async function printReceiptInDesktop(sale, optsOverride) {
 
 /**
  * Cetak struk:
- * - Di desktop (Tauri): cetak dari frontend (jendela print / printer sistem)
- * - Di browser: tetap lewat Laravel (printReceiptViaBackend)
+ * - Di desktop (Tauri): cetak dari frontend (printer thermal via Rust command)
+ * - Di browser: buka dialog print sistem (window.print) dengan layout struk
  */
 export async function printReceipt(sale) {
   if (isTauri()) {
     return printReceiptInDesktop(sale);
   }
-  return printReceiptViaBackend(sale);
+  // Browser: pakai window.print() dengan receipt HTML (sama seperti test print)
+  return printReceiptInBrowser(sale);
+}
+
+/**
+ * Cetak struk di browser via window.print() (bukan lewat backend).
+ * Tampilkan receipt HTML lalu buka dialog print sistem.
+ */
+async function printReceiptInBrowser(sale) {
+  let store = {};
+  try {
+    const res = await api.get("/store");
+    if (res.data?.name) store = res.data;
+  } catch (_) {}
+
+  const printerOpts = await getPrinterSettings();
+  const widthPx = printerOpts.paperWidth === 58 ? 220 : 280;
+  const html = buildReceiptHtml(sale, store, printerOpts);
+
+  const containerId = "receipt-print-" + Date.now();
+  const styleId = "style-print-" + Date.now();
+
+  const style = document.createElement("style");
+  style.id = styleId;
+  style.textContent = `
+    @media print {
+      body * { visibility: hidden !important; }
+      #${containerId}, #${containerId} * { visibility: visible !important; }
+      #${containerId} { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; background: white !important; z-index: 99999 !important; }
+    }
+  `;
+  document.head.appendChild(style);
+
+  const container = document.createElement("div");
+  container.id = containerId;
+  container.innerHTML = html;
+  container.style.cssText =
+    "position: fixed; left: -9999px; top: 0; width: " +
+    widthPx +
+    "px; background: white; z-index: 99998;";
+  document.body.appendChild(container);
+
+  return new Promise((resolve) => {
+    const cleanup = () => {
+      try { document.body.removeChild(container); } catch (_) {}
+      try { document.head.removeChild(style); } catch (_) {}
+    };
+    const doPrint = () => {
+      const onAfterPrint = () => {
+        window.removeEventListener("afterprint", onAfterPrint);
+        cleanup();
+        resolve({ success: true, method: "browser-print" });
+      };
+      window.addEventListener("afterprint", onAfterPrint);
+      window.print();
+    };
+    if (document.readyState === "complete") setTimeout(doPrint, 150);
+    else window.addEventListener("load", () => setTimeout(doPrint, 150));
+  });
 }
 
 /** Data struk contoh untuk test print */
