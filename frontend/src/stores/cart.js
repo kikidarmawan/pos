@@ -97,6 +97,16 @@ export const useCartStore = defineStore("cart", {
       });
     },
 
+    changeItemUnit(index, unit, productUnit) {
+      const item = this.items[index];
+      item.unit = unit;
+      item.productUnit = productUnit;
+      item.price = productUnit?.selling_price || item.product.base_price;
+      const base = item.price * item.quantity;
+      const totalDiscount = (item.discount || 0) * item.quantity;
+      item.subtotal = Math.max(0, base - totalDiscount);
+    },
+
     setDiscount(discount) {
       this.discount = discount;
     },

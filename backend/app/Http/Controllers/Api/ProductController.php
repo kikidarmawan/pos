@@ -9,6 +9,7 @@ use App\Models\ProductUnit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 class ProductController extends Controller
 {
@@ -19,7 +20,19 @@ class ProductController extends Controller
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', '%' . $search . '%')
                         ->orWhere('code', 'like', '%' . $search . '%')
-                        ->orWhere('barcode', 'like', '%' . $search . '%');
+                        ->orWhere('barcode', 'like', '%' . $search . '%')
+                        ->orWhereHas('productUnits', function ($qUnit) use ($search) {
+                            $qUnit->where('barcode', 'like', '%' . $search . '%');
+                        });
+                });
+            })
+            ->when($request->barcode, function ($query, $barcode) {
+                $query->where(function ($q) use ($barcode) {
+                    $q->where('barcode', '=', $barcode)
+                        ->orWhere('code', '=', $barcode)
+                        ->orWhereHas('productUnits', function ($qUnit) use ($barcode) {
+                            $qUnit->where('barcode', '=', $barcode);
+                        });
                 });
             })
             ->when($request->category_id, function ($query, $categoryId) {
@@ -47,7 +60,7 @@ class ProductController extends Controller
             'category_id' => 'required|exists:categories,id',
             'code' => 'required|string|unique:products,code',
             'name' => 'required|string|max:255',
-            'barcode' => 'nullable|string',
+            'barcode' => 'nullable|string|unique:products,barcode',
             'description' => 'nullable|string',
             'base_unit_id' => 'required|exists:units,id',
             'base_price' => 'required|numeric|min:0',
@@ -57,7 +70,7 @@ class ProductController extends Controller
             'units.*.unit_id' => 'required|exists:units,id',
             'units.*.conversion_factor' => 'required|numeric|min:0.001',
             'units.*.selling_price' => 'required|numeric|min:0',
-            'units.*.barcode' => 'nullable|string',
+            'units.*.barcode' => 'nullable|string|distinct|unique:product_units,barcode',
             'units.*.is_default' => 'nullable|boolean',
         ]);
 
@@ -147,7 +160,7 @@ class ProductController extends Controller
             'category_id' => 'required|exists:categories,id',
             'code' => 'required|string|unique:products,code,' . $product->id,
             'name' => 'required|string|max:255',
-            'barcode' => 'nullable|string',
+            'barcode' => 'nullable|string|unique:products,barcode,' . $product->id,
             'description' => 'nullable|string',
             'base_unit_id' => 'required|exists:units,id',
             'base_price' => 'required|numeric|min:0',
@@ -158,7 +171,14 @@ class ProductController extends Controller
             'units.*.unit_id' => 'required|exists:units,id',
             'units.*.conversion_factor' => 'required|numeric|min:0.001',
             'units.*.selling_price' => 'required|numeric|min:0',
-            'units.*.barcode' => 'nullable|string',
+            'units.*.barcode' => [
+                'nullable',
+                'string',
+                'distinct',
+                Rule::unique('product_units', 'barcode')->where(function ($query) use ($product) {
+                    return $query->where('product_id', '!=', $product->id);
+                }),
+            ],
             'units.*.is_default' => 'nullable|boolean',
         ]);
 

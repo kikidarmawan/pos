@@ -145,7 +145,7 @@
               </div>
 
               <div>
-                <label class="label text-xs">Barcode</label>
+                <label class="label text-xs">Kode Satuan</label>
                 <input v-model="unit.barcode" type="text" class="input" />
               </div>
 

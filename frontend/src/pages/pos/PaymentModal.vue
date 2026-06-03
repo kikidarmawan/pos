@@ -188,6 +188,7 @@ const paymentMethods = [
   { value: 'card', label: 'Kartu' },
   { value: 'transfer', label: 'Transfer' },
   { value: 'credit', label: 'Utang' },
+  { value: 'cod', label: 'COD' },
   { value: 'other', label: 'Lainnya' },
 ]
 

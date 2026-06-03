@@ -8,6 +8,11 @@
           <PrinterIcon class="w-5 h-5 mr-2" />
           Cetak Barcode ({{ selectedProducts.length }})
         </button>
+        <button v-if="selectedProducts.length > 0" @click="openBulkUnitBarcodeModal"
+          class="btn btn-secondary">
+          <PrinterIcon class="w-5 h-5 mr-2" />
+          Cetak Label Kode Satuan ({{ selectedProducts.length }})
+        </button>
         <button v-if="hasPermission('create_products')" @click="openModal()" class="btn btn-primary">
           <PlusIcon class="w-5 h-5 mr-2" />
           Tambah Produk
@@ -190,6 +195,9 @@
 
     <BarcodePrintModal v-if="showBarcodeModal" :product="selectedBarcodeProduct"
       :products="selectedBarcodeProducts" @close="closeBarcodeModal" />
+
+    <UnitBarcodePrintModal v-if="showUnitBarcodeModal" :product="selectedBarcodeProduct"
+      :products="selectedBarcodeProducts" @close="closeUnitBarcodeModal" />
   </div>
 </template>
 
@@ -202,6 +210,7 @@ import { formatCurrency, formatStock } from '@/utils/format'
 import { PlusIcon, PencilIcon, TrashIcon, PrinterIcon } from '@heroicons/vue/24/outline'
 import ProductFormModal from './ProductFormModal.vue'
 import BarcodePrintModal from '@/components/BarcodePrintModal.vue'
+import UnitBarcodePrintModal from '@/components/UnitBarcodePrintModal.vue'
 
 const authStore = useAuthStore()
 const toast = useToast()
@@ -213,6 +222,7 @@ const showModal = ref(false)
 const selectedProduct = ref(null)
 const loading = ref(false)
 const showBarcodeModal = ref(false)
+const showUnitBarcodeModal = ref(false)
 const selectedBarcodeProduct = ref(null)
 const selectedBarcodeProducts = ref([])
 const selectedProducts = ref([])
@@ -342,6 +352,18 @@ const openBulkBarcodeModal = () => {
 
 const closeBarcodeModal = () => {
   showBarcodeModal.value = false
+  selectedBarcodeProduct.value = null
+  selectedBarcodeProducts.value = []
+}
+
+const openBulkUnitBarcodeModal = () => {
+  selectedBarcodeProducts.value = [...selectedProducts.value]
+  selectedBarcodeProduct.value = null
+  showUnitBarcodeModal.value = true
+}
+
+const closeUnitBarcodeModal = () => {
+  showUnitBarcodeModal.value = false
   selectedBarcodeProduct.value = null
   selectedBarcodeProducts.value = []
 }
