@@ -65,6 +65,12 @@ class CategoryController extends Controller
 
     public function destroy(Category $category)
     {
+        if ($category->products()->exists()) {
+            return response()->json([
+                'message' => 'Data tidak dapat dihapus karena sudah terkait dengan data lain'
+            ], 400);
+        }
+
         $category->delete();
 
         return response()->json([

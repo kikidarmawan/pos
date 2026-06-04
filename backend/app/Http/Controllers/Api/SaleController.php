@@ -65,7 +65,7 @@ class SaleController extends Controller
             'total' => 'required|numeric|min:0',
             'paid' => 'required|numeric|min:0',
             'change' => 'nullable|numeric',
-            'payment_method' => 'required|in:cash,card,transfer,other,credit',
+            'payment_method' => 'required|in:cash,card,transfer,other,credit,cod',
             'details' => 'required|array|min:1',
             'details.*.product_id' => 'required|exists:products,id',
             'details.*.unit_id' => 'required|exists:units,id',

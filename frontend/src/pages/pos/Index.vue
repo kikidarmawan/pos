@@ -239,8 +239,16 @@
     </div>
 
     <!-- Product Search Modal -->
-    <div v-if="showProductModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-      @click.self="showProductModal = false">
+    <Transition
+      enter-active-class="transition duration-200 ease-out"
+      enter-from-class="opacity-0"
+      enter-to-class="opacity-100"
+      leave-active-class="transition duration-150 ease-in"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
+    >
+      <div v-if="showProductModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+        @click.self="showProductModal = false">
       <div class="bg-white rounded-xl shadow-2xl w-full max-w-6xl h-[85vh] overflow-hidden flex flex-col">
         <div class="p-4 border-b flex items-center justify-between shrink-0">
           <h3 class="text-lg font-bold">Cari Produk</h3>
@@ -301,10 +309,19 @@
         </div>
       </div>
     </div>
+    </Transition>
 
     <!-- Unit Selector Modal -->
-    <div v-if="showUnitSelector"
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+    <Transition
+      enter-active-class="transition duration-200 ease-out"
+      enter-from-class="opacity-0"
+      enter-to-class="opacity-100"
+      leave-active-class="transition duration-150 ease-in"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
+    >
+      <div v-if="showUnitSelector"
+        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4" @click.self="closeUnitSelector">
       <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
         <div class="flex items-center gap-3 mb-4">
           <div class="w-14 h-14 shrink-0 rounded-lg bg-gray-200 overflow-hidden flex items-center justify-center">
@@ -340,6 +357,7 @@
         </button>
       </div>
     </div>
+    </Transition>
 
     <!-- Payment Modal -->
     <PaymentModal v-if="showPaymentModal" :total="cartStore.total" :warehouse-id="selectedWarehouse"

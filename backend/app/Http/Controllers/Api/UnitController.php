@@ -65,6 +65,12 @@ class UnitController extends Controller
 
     public function destroy(Unit $unit)
     {
+        if ($unit->products()->exists() || $unit->productUnits()->exists()) {
+            return response()->json([
+                'message' => 'Data tidak dapat dihapus karena sudah terkait dengan data lain'
+            ], 400);
+        }
+
         $unit->delete();
 
         return response()->json([
