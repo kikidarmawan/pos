@@ -466,34 +466,96 @@ class ReportController extends Controller
         $type = $request->type ?? 'customer';
 
         if ($type === 'customer') {
-            // Total belanja = sum(sales.total) - sum(sale_returns.total) untuk penjualan pelanggan ini
-            $salesSub = 'SELECT COALESCE(SUM(sales.total), 0) FROM sales WHERE sales.customer_id = customers.id AND sales.status = "completed"';
+            $salesBaseQuery = DB::table('sales')->where('status', 'completed');
+
+            // Apply date filters
             if ($request->start_date) {
-                $salesSub .= ' AND sales.sale_date >= "' . $request->start_date . '"';
+                $salesBaseQuery->whereDate('sale_date', '>=', $request->start_date);
             }
             if ($request->end_date) {
-                $salesSub .= ' AND sales.sale_date <= "' . $request->end_date . '"';
+                $salesBaseQuery->whereDate('sale_date', '<=', $request->end_date);
             }
-            $returnsSub = 'SELECT COALESCE(SUM(sale_returns.total), 0) FROM sale_returns INNER JOIN sales ON sale_returns.sale_id = sales.id WHERE sales.customer_id = customers.id AND sale_returns.status = "completed"';
-            if ($request->start_date) {
-                $returnsSub .= ' AND sale_returns.return_date >= "' . $request->start_date . '"';
+
+            // Apply payment status filter
+            if ($request->payment_status === 'lunas') {
+                $salesBaseQuery->whereColumn('paid', '>=', 'total');
+            } elseif ($request->payment_status === 'belum_lunas') {
+                $salesBaseQuery->whereColumn('paid', '<', 'total');
             }
-            if ($request->end_date) {
-                $returnsSub .= ' AND sale_returns.return_date <= "' . $request->end_date . '"';
+
+            $sales = $salesBaseQuery->select(
+                'id',
+                DB::raw("COALESCE(customer_name, 'Guest') as name"),
+                'customer_phone',
+                'customer_address',
+                'total'
+            )->get();
+
+            $saleIds = $sales->pluck('id')->toArray();
+            $returns = [];
+            if (count($saleIds) > 0) {
+                $returns = DB::table('sale_returns')
+                    ->whereIn('sale_id', $saleIds)
+                    ->where('status', 'completed')
+                    ->select('sale_id', DB::raw('SUM(total) as return_total'))
+                    ->groupBy('sale_id')
+                    ->pluck('return_total', 'sale_id')
+                    ->toArray();
             }
-            $data = Customer::selectRaw('customers.*, ((' . $salesSub . ') - (' . $returnsSub . ')) as total_belanja')
-                ->orderByRaw('total_belanja DESC')
-                ->get();
+
+            $groupedData = [];
+            foreach ($sales as $sale) {
+                $name = $sale->name;
+                if (!isset($groupedData[$name])) {
+                    $groupedData[$name] = [
+                        'name' => $name,
+                        'phone' => $sale->customer_phone,
+                        'address' => $sale->customer_address,
+                        'jumlah_transaksi' => 0,
+                        'total_transaksi' => 0,
+                        'jumlah_retur' => 0,
+                        'total_retur' => 0,
+                        'jumlah_belanja' => 0,
+                        'total_belanja_count' => 0,
+                        'total_belanja' => 0,
+                        'total_transactions' => 0,
+                    ];
+                }
+                
+                $saleTotal = (float)$sale->total;
+                
+                $hasReturn = isset($returns[$sale->id]);
+                $returnTotal = $hasReturn ? (float)$returns[$sale->id] : 0;
+                
+                $groupedData[$name]['jumlah_transaksi'] += $saleTotal;
+                $groupedData[$name]['total_transaksi'] += 1;
+                $groupedData[$name]['jumlah_retur'] += $returnTotal;
+                if ($hasReturn) {
+                    $groupedData[$name]['total_retur'] += 1;
+                }
+                
+                $groupedData[$name]['jumlah_belanja'] = $groupedData[$name]['jumlah_transaksi'] - $groupedData[$name]['jumlah_retur'];
+                $groupedData[$name]['total_belanja_count'] = $groupedData[$name]['total_transaksi'] - $groupedData[$name]['total_retur'];
+                
+                $groupedData[$name]['total_belanja'] = $groupedData[$name]['jumlah_belanja'];
+                $groupedData[$name]['total_transactions'] = $groupedData[$name]['total_belanja_count'];
+            }
+
+            $data = collect(array_values($groupedData))->sortByDesc('total_belanja')->values();
         } else {
+            // For Supplier, we need to add total_transactions as well for consistency
             $subQuery = 'SELECT COALESCE(SUM(purchases.total), 0) FROM purchases WHERE purchases.supplier_id = suppliers.id AND purchases.status = "received"';
+            $countSubQuery = 'SELECT COUNT(purchases.id) FROM purchases WHERE purchases.supplier_id = suppliers.id AND purchases.status = "received"';
             if ($request->start_date) {
                 $subQuery .= ' AND purchases.purchase_date >= "' . $request->start_date . '"';
+                $countSubQuery .= ' AND purchases.purchase_date >= "' . $request->start_date . '"';
             }
             if ($request->end_date) {
                 $subQuery .= ' AND purchases.purchase_date <= "' . $request->end_date . '"';
+                $countSubQuery .= ' AND purchases.purchase_date <= "' . $request->end_date . '"';
             }
 
-            $data = Supplier::selectRaw('suppliers.*, (' . $subQuery . ') as total_belanja')
+            $data = Supplier::selectRaw('suppliers.*, (' . $subQuery . ') as total_belanja, (' . $countSubQuery . ') as total_transactions')
                 ->orderByRaw('total_belanja DESC')
                 ->get();
         }
@@ -501,6 +563,7 @@ class ReportController extends Controller
         $summary = [
             'total_rows' => $data->count(),
             'total_belanja' => $data->sum('total_belanja'),
+            'total_transactions' => $data->sum('total_transactions'),
         ];
 
         return response()->json([
@@ -696,5 +759,53 @@ class ReportController extends Controller
             new StockReportExport($products),
             'laporan-stok-' . date('Y-m-d') . '.xlsx'
         );
+    }
+
+    public function customerPurchasesReport(Request $request)
+    {
+        $query = Sale::where('status', 'completed')
+            ->whereColumn('paid', '>=', 'total')
+            ->whereNotExists(function ($q) {
+                $q->select(DB::raw(1))
+                  ->from('sale_returns')
+                  ->whereColumn('sale_returns.sale_id', 'sales.id')
+                  ->where('sale_returns.status', 'completed');
+            });
+
+        if ($request->start_date) {
+            $query->whereDate('sale_date', '>=', $request->start_date);
+        }
+
+        if ($request->end_date) {
+            $query->whereDate('sale_date', '<=', $request->end_date);
+        }
+
+        // We want to group by customer_name, customer_phone, customer_address
+        // so we can get unique customers from sales even if they don't have customer_id
+        $report = $query->select(
+                DB::raw("COALESCE(customer_name, 'Guest') as customer_name"),
+                'customer_phone',
+                'customer_address',
+                DB::raw('COUNT(id) as total_transactions'),
+                DB::raw('SUM(total) as total_purchases')
+            )
+            ->groupBy(
+                DB::raw("COALESCE(customer_name, 'Guest')"), 
+                'customer_phone', 
+                'customer_address'
+            )
+            ->orderByDesc('total_purchases')
+            ->get();
+
+        $summary = [
+            'total_customers' => $report->count(),
+            'total_transactions' => $report->sum('total_transactions'),
+            'total_purchases' => $report->sum('total_purchases'),
+        ];
+
+        return response()->json([
+            'data' => $report,
+            'summary' => $summary,
+        ]);
     }
 }

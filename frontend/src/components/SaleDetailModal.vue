@@ -47,10 +47,69 @@
 
           <!-- Customer -->
           <div class="border-t pt-4">
-            <h3 class="font-medium text-gray-700 mb-2">Pelanggan</h3>
-            <p class="font-medium">{{ sale.customer_name || 'Umum' }}</p>
-            <p v-if="sale.customer_phone" class="text-sm text-gray-600 mt-0.5">{{ sale.customer_phone }}</p>
-            <p v-if="sale.customer_address" class="text-sm text-gray-500 mt-1">{{ sale.customer_address }}</p>
+            <div class="flex justify-between items-center mb-2">
+              <h3 class="font-medium text-gray-700">Pelanggan</h3>
+              <button 
+                v-if="!sale.is_customer_edited && sale.status !== 'cancelled' && !isEditingCustomer" 
+                type="button" 
+                @click="startEditCustomer" 
+                class="text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1 font-medium"
+              >
+                <PencilSquareIcon class="w-4 h-4" />
+                Ubah
+              </button>
+              <span v-if="sale.is_customer_edited" class="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                Sudah diubah (Batas edit: 1x)
+              </span>
+            </div>
+
+            <div v-if="!isEditingCustomer">
+              <p class="font-medium">{{ sale.customer_name || 'Umum' }}</p>
+              <p v-if="sale.customer_phone" class="text-sm text-gray-600 mt-0.5">{{ sale.customer_phone }}</p>
+              <p v-if="sale.customer_address" class="text-sm text-gray-500 mt-1">{{ sale.customer_address }}</p>
+            </div>
+
+            <div v-else class="bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-3 mt-2">
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Pilih Pelanggan Terdaftar</label>
+                <select 
+                  :value="editForm.customer_id || ''" 
+                  @change="onCustomerSelect" 
+                  class="input text-sm w-full"
+                  :disabled="customerLoading"
+                >
+                  <option value="">-- Umum / Non-Member --</option>
+                  <option v-for="c in customers" :key="c.id" :value="c.id">
+                    {{ c.name }} ({{ c.phone || 'No telp -' }})
+                  </option>
+                </select>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-semibold text-gray-600 mb-1">Nama Pelanggan</label>
+                  <input v-model="editForm.customer_name" type="text" class="input text-sm w-full" placeholder="Nama pelanggan" />
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-gray-600 mb-1">No. Telepon</label>
+                  <input v-model="editForm.customer_phone" type="text" class="input text-sm w-full" placeholder="No. telepon" />
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Alamat</label>
+                <textarea v-model="editForm.customer_address" class="input text-sm w-full h-16 resize-none" placeholder="Alamat pelanggan"></textarea>
+              </div>
+
+              <div class="flex gap-2 justify-end pt-1">
+                <button type="button" @click="isEditingCustomer = false" class="btn btn-sm btn-outline">
+                  Batal
+                </button>
+                <button type="button" @click="handleSaveCustomer" :disabled="saveCustomerLoading" class="btn btn-sm btn-primary">
+                  {{ saveCustomerLoading ? 'Menyimpan...' : 'Simpan' }}
+                </button>
+              </div>
+            </div>
           </div>
 
           <!-- Items -->
@@ -195,7 +254,7 @@ import { useToast } from 'vue-toastification'
 import api from '@/utils/axios'
 import { formatCurrency, formatDate, formatDateTime, formatPaymentMethod, formatStock } from '@/utils/format'
 import { printReceipt } from '@/utils/printReceipt'
-import { XMarkIcon, PrinterIcon } from '@heroicons/vue/24/outline'
+import { XMarkIcon, PrinterIcon, PencilSquareIcon } from '@heroicons/vue/24/outline'
 
 const props = defineProps({
   saleId: { type: [Number, String], default: null }
@@ -208,6 +267,76 @@ const loading = ref(false)
 const sale = ref(null)
 const paymentAmount = ref(0)
 const paymentLoading = ref(false)
+
+// Edit Customer States
+const isEditingCustomer = ref(false)
+const customers = ref([])
+const customerLoading = ref(false)
+const saveCustomerLoading = ref(false)
+const editForm = ref({
+  customer_id: null,
+  customer_name: '',
+  customer_phone: '',
+  customer_address: ''
+})
+
+const fetchCustomers = async () => {
+  if (customers.value.length > 0) return
+  customerLoading.value = true
+  try {
+    const res = await api.get('/customers', { params: { per_page: 200, is_active: 1 } })
+    customers.value = res.data.data || []
+  } catch (e) {
+    console.error('Gagal memuat daftar pelanggan', e)
+  } finally {
+    customerLoading.value = false
+  }
+}
+
+const startEditCustomer = async () => {
+  if (!sale.value) return
+  editForm.value = {
+    customer_id: sale.value.customer_id,
+    customer_name: sale.value.customer_name || '',
+    customer_phone: sale.value.customer_phone || '',
+    customer_address: sale.value.customer_address || ''
+  }
+  isEditingCustomer.value = true
+  await fetchCustomers()
+}
+
+const onCustomerSelect = (event) => {
+  const customerId = event.target.value
+  if (!customerId) {
+    editForm.value.customer_id = null
+    editForm.value.customer_name = 'Umum'
+    editForm.value.customer_phone = ''
+    editForm.value.customer_address = ''
+  } else {
+    const cust = customers.value.find(c => c.id == customerId)
+    if (cust) {
+      editForm.value.customer_id = cust.id
+      editForm.value.customer_name = cust.name
+      editForm.value.customer_phone = cust.phone || ''
+      editForm.value.customer_address = cust.address || ''
+    }
+  }
+}
+
+const handleSaveCustomer = async () => {
+  saveCustomerLoading.value = true
+  try {
+    const res = await api.put(`/sales/${sale.value.id}/customer`, editForm.value)
+    toast.success('Data pelanggan berhasil diubah')
+    sale.value = { ...sale.value, ...res.data.sale }
+    isEditingCustomer.value = false
+    emit('updated')
+  } catch (e) {
+    toast.error(e.response?.data?.message || 'Gagal mengubah data pelanggan')
+  } finally {
+    saveCustomerLoading.value = false
+  }
+}
 
 const hasRemainingDebt = computed(() => {
   if (!sale.value || sale.value.status === 'cancelled') return false
@@ -223,6 +352,7 @@ const fetchSale = async () => {
   if (!props.saleId) return
   loading.value = true
   sale.value = null
+  isEditingCustomer.value = false
   try {
     const res = await api.get(`/sales/${props.saleId}`)
     sale.value = res.data

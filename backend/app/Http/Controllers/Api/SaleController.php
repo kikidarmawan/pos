@@ -72,6 +72,7 @@ class SaleController extends Controller
             'details.*.quantity' => 'required|numeric|min:0.01',
             'details.*.price' => 'required|numeric|min:0',
             'details.*.subtotal' => 'required|numeric|min:0',
+            'details.*.is_bonus' => 'sometimes|boolean',
         ]);
 
         DB::beginTransaction();
@@ -139,6 +140,7 @@ class SaleController extends Controller
                     'quantity' => $detail['quantity'],
                     'price' => $detail['price'],
                     'subtotal' => $detail['subtotal'],
+                    'is_bonus' => $detail['is_bonus'] ?? false,
                 ]);
 
                 // Deduct stock using FIFO
@@ -166,7 +168,7 @@ class SaleController extends Controller
                         'reference_id' => $sale->id,
                         'quantity' => $deductQty,
                         'user_id' => auth()->id(),
-                        'notes' => 'Penjualan ' . $invoiceNumber,
+                        'notes' => ($detail['is_bonus'] ?? false ? 'Bonus - ' : '') . 'Penjualan ' . $invoiceNumber,
                     ]);
                 }
             }
@@ -338,5 +340,40 @@ class SaleController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    public function updateCustomer(Request $request, Sale $sale)
+    {
+        if ($sale->status === 'cancelled') {
+            return response()->json([
+                'message' => 'Transaksi sudah dibatalkan',
+            ], 400);
+        }
+
+        if ($sale->is_customer_edited) {
+            return response()->json([
+                'message' => 'Data pelanggan untuk transaksi ini hanya dapat diubah satu kali saja',
+            ], 422);
+        }
+
+        $request->validate([
+            'customer_id' => 'nullable|exists:customers,id',
+            'customer_name' => 'nullable|string|max:255',
+            'customer_phone' => 'nullable|string|max:20',
+            'customer_address' => 'nullable|string',
+        ]);
+
+        $sale->update([
+            'customer_id' => $request->customer_id,
+            'customer_name' => $request->customer_name,
+            'customer_phone' => $request->customer_phone,
+            'customer_address' => $request->customer_address,
+            'is_customer_edited' => true,
+        ]);
+
+        return response()->json([
+            'message' => 'Data pelanggan berhasil diubah',
+            'sale' => $sale->load(['warehouse', 'user']),
+        ]);
     }
 }

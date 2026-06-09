@@ -11,10 +11,14 @@ use App\Http\Controllers\Api\WarehouseController;
 use App\Http\Controllers\Api\RackController;
 use App\Http\Controllers\Api\SupplierController;
 use App\Http\Controllers\Api\CustomerController;
+use App\Http\Controllers\Api\DeliveryController;
+use App\Http\Controllers\Api\DriverController;
+use App\Http\Controllers\Api\VehicleController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\PurchaseController;
 use App\Http\Controllers\Api\SaleController;
 use App\Http\Controllers\Api\SaleReturnController;
+use App\Http\Controllers\Api\PurchaseReturnController;
 use App\Http\Controllers\Api\SaleHoldController;
 use App\Http\Controllers\Api\StoreController;
 use App\Http\Controllers\Api\StockController;
@@ -51,6 +55,16 @@ Route::middleware(['auth:sanctum', 'subscription'])->group(function () {
     Route::apiResource('racks', RackController::class);
     Route::apiResource('suppliers', SupplierController::class);
     Route::apiResource('customers', CustomerController::class);
+    Route::apiResource('drivers', DriverController::class);
+    Route::post('drivers/{driver}/update-with-file', [DriverController::class, 'update'])->name('drivers.update-with-file');
+    Route::apiResource('vehicles', VehicleController::class);
+
+    // Deliveries
+    Route::get('deliveries/pending-items', [DeliveryController::class, 'getPendingItems']);
+    Route::apiResource('deliveries', DeliveryController::class)->except(['update', 'destroy']);
+    Route::post('deliveries/{delivery}/depart', [DeliveryController::class, 'depart']);
+    Route::post('deliveries/{delivery}/complete', [DeliveryController::class, 'complete']);
+    Route::post('deliveries/{delivery}/cancel', [DeliveryController::class, 'cancel']);
 
     // Products
     Route::apiResource('products', ProductController::class);
@@ -61,11 +75,16 @@ Route::middleware(['auth:sanctum', 'subscription'])->group(function () {
     Route::apiResource('purchases', PurchaseController::class)->only(['index', 'store', 'show']);
     Route::post('purchases/{purchase}/cancel', [PurchaseController::class, 'cancel']);
 
+    Route::get('purchase-returns', [PurchaseReturnController::class, 'index']);
+    Route::post('purchase-returns', [PurchaseReturnController::class, 'store']);
+    Route::get('purchase-returns/{purchase_return}', [PurchaseReturnController::class, 'show']);
+
     // Sales
     Route::apiResource('sales', SaleController::class)->only(['index', 'store', 'show']);
     Route::post('sales/{sale}/payment', [SaleController::class, 'addPayment']);
     Route::post('sales/{sale}/cancel', [SaleController::class, 'cancel']);
     Route::post('sales/{sale}/print-receipt', [SaleController::class, 'printReceipt']);
+    Route::put('sales/{sale}/customer', [SaleController::class, 'updateCustomer']);
 
     Route::get('sale-returns', [SaleReturnController::class, 'index']);
     Route::post('sale-returns', [SaleReturnController::class, 'store']);
@@ -101,6 +120,7 @@ Route::middleware(['auth:sanctum', 'subscription'])->group(function () {
     Route::get('reports/sell-payment', [ReportController::class, 'sellPaymentReport']);
     Route::get('reports/stock-movements', [ReportController::class, 'stockMovementReport']);
     Route::get('reports/daily-cashier-summary', [ReportController::class, 'dailyCashierSummary']);
+    Route::get('reports/customer-purchases', [ReportController::class, 'customerPurchasesReport']);
 
     // Export reports
     Route::get('reports/export/sales', [ReportController::class, 'exportSales']);

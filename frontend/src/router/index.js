@@ -16,6 +16,12 @@ const routes = [
     meta: { requiresGuest: true },
   },
   {
+    path: "/deliveries/:id/print",
+    name: "DeliveryPrint",
+    component: () => import("@/pages/deliveries/Print.vue"),
+    meta: { requiresAuth: true, permission: "view_deliveries" },
+  },
+  {
     path: "/",
     component: () => import("@/layouts/DashboardLayout.vue"),
     meta: { requiresAuth: true },
@@ -73,6 +79,30 @@ const routes = [
         path: "customers",
         name: "Customers",
         component: () => import("@/pages/customers/Index.vue"),
+      },
+      {
+        path: 'drivers',
+        name: 'Drivers',
+        component: () => import('@/pages/drivers/Index.vue'),
+        meta: { permission: 'view_drivers' }
+      },
+      {
+        path: 'vehicles',
+        name: 'Vehicles',
+        component: () => import('@/pages/vehicles/Index.vue'),
+        meta: { permission: 'view_vehicles' }
+      },
+      {
+        path: 'deliveries',
+        name: 'Deliveries',
+        component: () => import('@/pages/deliveries/Index.vue'),
+        meta: { permission: 'view_deliveries' }
+      },
+      {
+        path: 'deliveries/create',
+        name: 'DeliveriesCreate',
+        component: () => import('@/pages/deliveries/Create.vue'),
+        meta: { permission: 'create_deliveries' }
       },
       // Products
       {
@@ -170,9 +200,15 @@ const routes = [
         meta: { permission: "view_reports" },
       },
       {
-        path: "reports/supplier-customer",
-        name: "SupplierCustomerReport",
-        component: () => import("@/pages/reports/SupplierCustomer.vue"),
+        path: "reports/customer-transactions",
+        name: "CustomerTransactionsReport",
+        component: () => import("@/pages/reports/CustomerTransactions.vue"),
+        meta: { permission: "view_reports" },
+      },
+      {
+        path: "reports/supplier-transactions",
+        name: "SupplierTransactionsReport",
+        component: () => import("@/pages/reports/SupplierTransactions.vue"),
         meta: { permission: "view_reports" },
       },
       {
@@ -211,6 +247,12 @@ const routes = [
         component: () => import("@/pages/reports/DailyCashierSummary.vue"),
         meta: { permission: "view_reports" },
       },
+//      {
+//        path: "reports/customer-purchases",
+//        name: "CustomerPurchasesReport",
+//        component: () => import("@/pages/reports/CustomerPurchases.vue"),
+//        meta: { permission: "view_reports" },
+//      },
       // Settings
       {
         path: "settings/store",

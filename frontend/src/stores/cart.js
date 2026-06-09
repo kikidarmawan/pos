@@ -18,6 +18,8 @@ export const useCartStore = defineStore("cart", {
 
     subtotal: (state) => {
       return state.items.reduce((total, item) => {
+        // Item bonus tidak dihitung ke subtotal
+        if (item.isBonus) return total;
         const base = item.price * item.quantity;
         const discountPerQty = item.discount || 0;
         const totalDiscount = discountPerQty * item.quantity;
@@ -37,7 +39,10 @@ export const useCartStore = defineStore("cart", {
   actions: {
     addItem(product, unit, productUnit) {
       const existingItem = this.items.find(
-        (item) => item.product.id === product.id && item.unit.id === unit.id,
+        (item) =>
+          item.product.id === product.id &&
+          item.unit.id === unit.id &&
+          !item.isBonus,
       );
 
       if (existingItem) {
@@ -56,6 +61,32 @@ export const useCartStore = defineStore("cart", {
           price,
           discount: 0,
           subtotal: price,
+          isBonus: false,
+        });
+      }
+    },
+
+    addBonusItem(product, unit, productUnit) {
+      const existingItem = this.items.find(
+        (item) =>
+          item.product.id === product.id &&
+          item.unit.id === unit.id &&
+          item.isBonus,
+      );
+
+      if (existingItem) {
+        existingItem.quantity++;
+        // Bonus tetap subtotal = 0
+      } else {
+        this.items.push({
+          product,
+          unit,
+          productUnit,
+          quantity: 1,
+          price: 0,
+          discount: 0,
+          subtotal: 0,
+          isBonus: true,
         });
       }
     },
@@ -70,14 +101,19 @@ export const useCartStore = defineStore("cart", {
       } else {
         const item = this.items[index];
         item.quantity = quantity;
-        const base = item.price * quantity;
-        const totalDiscount = (item.discount || 0) * quantity;
-        item.subtotal = Math.max(0, base - totalDiscount);
+        if (item.isBonus) {
+          item.subtotal = 0;
+        } else {
+          const base = item.price * quantity;
+          const totalDiscount = (item.discount || 0) * quantity;
+          item.subtotal = Math.max(0, base - totalDiscount);
+        }
       }
     },
 
     updatePrice(index, price) {
       const item = this.items[index];
+      if (item.isBonus) return; // Bonus tidak bisa ubah harga
       item.price = price;
       const base = price * item.quantity;
       const totalDiscount = (item.discount || 0) * item.quantity;
@@ -86,6 +122,7 @@ export const useCartStore = defineStore("cart", {
 
     updateItemDiscount(index, discountPerQty) {
       const item = this.items[index];
+      if (item.isBonus) return; // Bonus tidak ada diskon
       const discountVal = Math.max(0, parseFloat(discountPerQty) || 0);
       const base = item.price * item.quantity;
       const totalDiscount = discountVal * item.quantity;
@@ -101,10 +138,15 @@ export const useCartStore = defineStore("cart", {
       const item = this.items[index];
       item.unit = unit;
       item.productUnit = productUnit;
-      item.price = productUnit?.selling_price || item.product.base_price;
-      const base = item.price * item.quantity;
-      const totalDiscount = (item.discount || 0) * item.quantity;
-      item.subtotal = Math.max(0, base - totalDiscount);
+      if (item.isBonus) {
+        item.price = 0;
+        item.subtotal = 0;
+      } else {
+        item.price = productUnit?.selling_price || item.product.base_price;
+        const base = item.price * item.quantity;
+        const totalDiscount = (item.discount || 0) * item.quantity;
+        item.subtotal = Math.max(0, base - totalDiscount);
+      }
     },
 
     setDiscount(discount) {

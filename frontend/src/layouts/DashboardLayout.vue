@@ -23,7 +23,8 @@
                   <component :is="item.icon" class="w-4 h-4 mr-3 shrink-0" />
                   <span>{{ item.label }}</span>
                 </div>
-                <ChevronDownIcon :class="['w-4 h-4 transition-transform', expandedMenus.includes(item.name) ? '' : '-rotate-90']" />
+                <ChevronDownIcon
+                  :class="['w-4 h-4 transition-transform', expandedMenus.includes(item.name) ? '' : '-rotate-90']" />
               </button>
               <div v-show="expandedMenus.includes(item.name)" class="bg-gray-50/50">
                 <router-link v-for="child in item.children" :key="child.name" :to="child.path"
@@ -36,12 +37,10 @@
               </div>
             </div>
             <!-- Simple link (active class pakai route.path agar Dashboard hanya aktif di /) -->
-            <router-link v-else :to="item.path"
-              v-show="!item.permission || hasPermission(item.permission)"
-              :class="[
-                'flex items-center px-6 py-2.5 text-sm text-gray-700 hover:bg-primary-50 hover:text-primary-600 transition-colors',
-                isMenuActive(item) ? 'bg-primary-50 text-primary-600 border-r-4 border-primary-600' : ''
-              ]">
+            <router-link v-else :to="item.path" v-show="!item.permission || hasPermission(item.permission)" :class="[
+              'flex items-center px-6 py-2.5 text-sm text-gray-700 hover:bg-primary-50 hover:text-primary-600 transition-colors',
+              isMenuActive(item) ? 'bg-primary-50 text-primary-600 border-r-4 border-primary-600' : ''
+            ]">
               <component :is="item.icon" class="w-4 h-4 mr-3 shrink-0" />
               <span>{{ item.label }}</span>
             </router-link>
@@ -60,54 +59,49 @@
       <!-- Header -->
       <header class="bg-white shadow-sm sticky top-0 z-40">
         <!-- Notif langganan mau habis (7 hari lagi), bisa di-close -->
-        <div
-          v-if="subscriptionStore.isExpiringSoon && !subscriptionNotifDismissed"
-          class="flex items-center justify-between gap-2 px-4 py-2 bg-amber-100 text-amber-800 text-sm border-b border-amber-200"
-        >
+        <div v-if="subscriptionStore.isExpiringSoon && !subscriptionNotifDismissed"
+          class="flex items-center justify-between gap-2 px-4 py-2 bg-amber-100 text-amber-800 text-sm border-b border-amber-200">
           <div class="flex items-center justify-center gap-2 min-w-0 flex-1">
             <ExclamationTriangleIcon class="w-5 h-5 shrink-0" />
             <span>
               Masa langganan akan habis dalam
               <strong>{{ subscriptionStore.daysLeft }} hari</strong>.
-              <button
-                type="button"
-                @click="subscriptionStore.openPayModal()"
-                class="underline font-semibold hover:no-underline ml-1"
-              >
+              <button type="button" @click="subscriptionStore.openPayModal()"
+                class="underline font-semibold hover:no-underline ml-1">
                 Perpanjang sekarang
               </button>
             </span>
           </div>
-          <button
-            type="button"
-            @click="subscriptionNotifDismissed = true"
-            class="p-1 rounded hover:bg-amber-200/80 text-amber-800 shrink-0"
-            title="Tutup"
-            aria-label="Tutup notifikasi"
-          >
+          <button type="button" @click="subscriptionNotifDismissed = true"
+            class="p-1 rounded hover:bg-amber-200/80 text-amber-800 shrink-0" title="Tutup"
+            aria-label="Tutup notifikasi">
             <XMarkIcon class="w-5 h-5" />
           </button>
         </div>
         <div class="flex items-center justify-between px-4 py-3 gap-4">
-          <button
-            type="button"
-            @click="sidebarOpen = !sidebarOpen"
+          <button type="button" @click="sidebarOpen = !sidebarOpen"
             class="p-2 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors"
-            :title="sidebarOpen ? 'Tutup menu' : 'Buka menu'"
-            aria-label="Toggle menu"
-          >
+            :title="sidebarOpen ? 'Tutup menu' : 'Buka menu'" aria-label="Toggle menu">
             <Bars3Icon class="w-6 h-6" />
           </button>
 
           <!-- Tanggal & Waktu -->
           <div class="flex-1 flex justify-center">
-            <div class="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 px-4 py-2 rounded-lg border border-gray-200">
+            <div
+              class="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 px-4 py-2 rounded-lg border border-gray-200">
               <ClockIcon class="w-5 h-5 text-primary-600 shrink-0" />
               <span class="font-medium tabular-nums">{{ dateTime }}</span>
             </div>
           </div>
 
           <div class="flex items-center gap-3">
+            <!-- Fullscreen (hanya mode web, bukan Tauri) -->
+            <button v-if="!isDesktop" type="button" @click="toggleFullscreen"
+              class="p-2 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors"
+              :title="isFullscreen ? 'Keluar Fullscreen' : 'Fullscreen'" aria-label="Toggle fullscreen">
+              <ArrowsPointingOutIcon v-if="!isFullscreen" class="w-5 h-5" />
+              <ArrowsPointingInIcon v-else class="w-5 h-5" />
+            </button>
             <div class="text-right hidden sm:block">
               <p class="text-sm font-medium text-gray-900">{{ user?.name }}</p>
               <p class="text-xs text-gray-500">{{ user?.roles?.[0]?.name }}</p>
@@ -115,7 +109,8 @@
             <router-link :to="{ name: 'Profile' }" class="p-2 rounded-lg hover:bg-gray-100" title="Profil">
               <UserCircleIcon class="w-6 h-6 text-gray-600" />
             </router-link>
-            <button @click="handleLogout" class="flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+            <button @click="handleLogout"
+              class="flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors">
               <ArrowRightOnRectangleIcon class="w-5 h-5" />
               <span class="hidden sm:inline">Logout</span>
             </button>
@@ -130,7 +125,8 @@
     </div>
 
     <!-- Overlay saat sidebar terbuka (mobile) -->
-    <div v-if="sidebarOpen" @click="sidebarOpen = false" class="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden" aria-hidden="true"></div>
+    <div v-if="sidebarOpen" @click="sidebarOpen = false" class="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+      aria-hidden="true"></div>
 
     <!-- Modal langganan habis (harus bayar untuk lanjut) -->
     <SubscriptionExpiredModal :show="subscriptionStore.showExpiredModal" />
@@ -138,7 +134,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, provide } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useSubscriptionStore } from '@/stores/subscription'
@@ -173,7 +169,10 @@ import {
   PrinterIcon,
   ClockIcon,
   ExclamationTriangleIcon,
-  XMarkIcon
+  XMarkIcon,
+  ArrowsPointingOutIcon,
+  ArrowsPointingInIcon,
+  CircleStackIcon
 } from '@heroicons/vue/24/outline'
 
 const router = useRouter()
@@ -185,9 +184,28 @@ const subscriptionStore = useSubscriptionStore()
 const appVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.0'
 
 const sidebarOpen = ref(true)
+provide('sidebarOpen', sidebarOpen)
 const subscriptionNotifDismissed = ref(false)
 const user = computed(() => authStore.user)
 const dateTime = ref('')
+const isDesktop = computed(() => typeof window !== 'undefined' && !!window.__TAURI__)
+const isFullscreen = ref(false)
+
+const toggleFullscreen = async () => {
+  try {
+    if (!document.fullscreenElement) {
+      await document.documentElement.requestFullscreen()
+    } else {
+      await document.exitFullscreen()
+    }
+  } catch (e) {
+    console.error('Fullscreen not supported', e)
+  }
+}
+
+const onFullscreenChange = () => {
+  isFullscreen.value = !!document.fullscreenElement
+}
 
 function formatNavbarDateTime() {
   const now = new Date()
@@ -213,20 +231,24 @@ onMounted(() => {
     dateTime.value = formatNavbarDateTime()
   }, 1000)
   subscriptionStore.fetchCurrent()
+  document.addEventListener('fullscreenchange', onFullscreenChange)
 })
 onUnmounted(() => {
   if (dateTimeInterval) clearInterval(dateTimeInterval)
+  document.removeEventListener('fullscreenchange', onFullscreenChange)
 })
 
 const menuItems = [
   { name: 'dashboard', label: 'Dashboard', path: '/', icon: HomeIcon },
   {
     name: 'kontak',
-    label: 'Kontak',
-    icon: IdentificationIcon,
+    label: 'Manajemen Data',
+    icon: CircleStackIcon,
     children: [
       { name: 'customers', label: 'Pelanggan', path: '/customers', icon: UserCircleIcon },
       { name: 'suppliers', label: 'Supplier', path: '/suppliers', icon: TruckIcon, permission: 'view_suppliers' },
+      { name: 'drivers', label: 'Sopir', path: '/drivers', icon: IdentificationIcon, permission: 'view_drivers' },
+      { name: 'vehicles', label: 'Kendaraan (Mobil)', path: '/vehicles', icon: TruckIcon, permission: 'view_vehicles' },
     ],
   },
   {
@@ -239,7 +261,7 @@ const menuItems = [
       { name: 'roles', label: 'Peran', path: '/roles', icon: ShieldCheckIcon, permission: 'view_roles' },
     ],
   },
-  { name: 'pos', label: 'Point of Sale', path: '/pos', icon: CurrencyDollarIcon, permission: 'create_sales' },
+  { name: 'pos', label: 'POS Kasir', path: '/pos', icon: CurrencyDollarIcon, permission: 'create_sales' },
   {
     name: 'penjualan',
     label: 'Penjualan',
@@ -260,6 +282,7 @@ const menuItems = [
       { name: 'purchase-returns', label: 'Retur Pembelian', path: '/purchase-returns', icon: ArrowPathIcon, permission: 'view_purchases' },
     ],
   },
+  { name: 'deliveries', label: 'Pengiriman Barang', path: '/deliveries', icon: TruckIcon, permission: 'view_deliveries' },
   {
     name: 'kelola-produk',
     label: 'Kelola Produk',
@@ -289,7 +312,9 @@ const menuItems = [
     children: [
       { name: 'profit-report', label: 'Laporan Laba/Rugi', path: '/reports/profit', icon: DocumentChartBarIcon, permission: 'view_reports' },
       { name: 'purchase-sale-report', label: 'Pembelian & Penjualan', path: '/reports/purchase-sale', icon: ArrowPathIcon, permission: 'view_reports' },
-      { name: 'supplier-customer-report', label: 'Laporan Supplier & Pelanggan', path: '/reports/supplier-customer', icon: UserGroupIcon, permission: 'view_reports' },
+      { name: 'customer-transactions-report', label: 'Laporan Transaksi Pelanggan', path: '/reports/customer-transactions', icon: UserGroupIcon, permission: 'view_reports' },
+      { name: 'supplier-transactions-report', label: 'Laporan Transaksi Supplier', path: '/reports/supplier-transactions', icon: TruckIcon, permission: 'view_reports' },
+      // { name: 'customer-purchases', label: 'Laporan Pembelian Customer', path: '/reports/customer-purchases', icon: UserGroupIcon, permission: 'view_reports' },
       { name: 'stock-report', label: 'Laporan Stok', path: '/reports/stock', icon: ChartBarIcon, permission: 'view_reports' },
       { name: 'stock-adjustment-report', label: 'Laporan Penyesuaian Stok', path: '/reports/stock-adjustment', icon: AdjustmentsHorizontalIcon, permission: 'view_reports' },
       { name: 'trending-products-report', label: 'Produk Terlaris', path: '/reports/trending-products', icon: ArrowTrendingUpIcon, permission: 'view_reports' },

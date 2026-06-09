@@ -90,7 +90,7 @@ class PurchaseController extends Controller
                 // Get product unit for conversion (atau base unit jika unit_id = base_unit_id)
                 $product = Product::find($detail['product_id']);
                 $productUnit = ProductUnit::where('product_id', $detail['product_id'])
-                    ->whereId($detail['unit_id'])
+                    ->where('unit_id', $detail['unit_id'])
                     ->first();
 
                 $conversionFactor = 1;

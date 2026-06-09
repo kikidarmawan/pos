@@ -89,7 +89,7 @@
                     <VSelect
                       v-model="item.unit_id"
                       :options="item.units"
-                      :reduce="(u) => u.id"
+                      :reduce="(u) => u.unit_id"
                       :get-option-label="(u) => u.unit?.name ?? ''"
                       placeholder="Pilih"
                       :filterable="true"

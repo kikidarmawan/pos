@@ -27,6 +27,7 @@ class Sale extends Model
         'change',
         'payment_method',
         'status',
+        'is_customer_edited',
     ];
 
     protected $casts = [
@@ -37,6 +38,7 @@ class Sale extends Model
         'total' => 'decimal:2',
         'paid' => 'decimal:2',
         'change' => 'decimal:2',
+        'is_customer_edited' => 'boolean',
     ];
 
     public function warehouse()

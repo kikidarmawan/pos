@@ -229,7 +229,8 @@ const handlePayment = async () => {
         unit_id: item.unit.id,
         quantity: item.quantity,
         price: item.price,
-        subtotal: item.subtotal
+        subtotal: item.subtotal,
+        is_bonus: item.isBonus || false
       }))
     }
 

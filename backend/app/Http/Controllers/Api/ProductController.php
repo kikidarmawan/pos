@@ -160,7 +160,7 @@ class ProductController extends Controller
             'category_id' => 'required|exists:categories,id',
             'code' => 'required|string|unique:products,code,' . $product->id,
             'name' => 'required|string|max:255',
-            'barcode' => 'nullable|string|unique:products,barcode,' . $product->id,
+            'barcode' => 'nullable|string|unique:products,barcode,' . $product->id . ',id',
             'description' => 'nullable|string',
             'base_unit_id' => 'required|exists:units,id',
             'base_price' => 'required|numeric|min:0',

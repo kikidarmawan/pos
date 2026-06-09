@@ -16,12 +16,14 @@ class SaleDetail extends Model
         'quantity',
         'price',
         'subtotal',
+        'is_bonus',
     ];
 
     protected $casts = [
         'quantity' => 'decimal:3',
         'price' => 'decimal:2',
         'subtotal' => 'decimal:2',
+        'is_bonus' => 'boolean',
     ];
 
     public function sale()
@@ -37,5 +39,10 @@ class SaleDetail extends Model
     public function unit()
     {
         return $this->belongsTo(Unit::class);
+    }
+
+    public function deliveryItems()
+    {
+        return $this->hasMany(DeliveryItem::class);
     }
 }

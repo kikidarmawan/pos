@@ -51,6 +51,24 @@ class RolePermissionSeeder extends Seeder
             'edit_suppliers',
             'delete_suppliers',
 
+            // Driver (Sopir)
+            'view_drivers',
+            'create_drivers',
+            'edit_drivers',
+            'delete_drivers',
+
+            // Vehicle (Mobil)
+            'view_vehicles',
+            'create_vehicles',
+            'edit_vehicles',
+            'delete_vehicles',
+
+            // Delivery (Pengiriman)
+            'view_deliveries',
+            'create_deliveries',
+            'edit_deliveries',
+            'delete_deliveries',
+
             // Product
             'view_products',
             'create_products',
@@ -77,17 +95,17 @@ class RolePermissionSeeder extends Seeder
         ];
 
         foreach ($permissions as $permission) {
-            Permission::create(['name' => $permission]);
+            Permission::firstOrCreate(['name' => $permission]);
         }
 
         // Create roles and assign permissions
 
         // Super Admin - all permissions
-        $superAdmin = Role::create(['name' => 'Super Admin']);
+        $superAdmin = Role::firstOrCreate(['name' => 'Super Admin']);
         $superAdmin->givePermissionTo(Permission::all());
 
         // Admin - manage master data & reports
-        $admin = Role::create(['name' => 'Admin']);
+        $admin = Role::firstOrCreate(['name' => 'Admin']);
         $admin->givePermissionTo([
             'view_users',
             'create_users',
@@ -108,6 +126,18 @@ class RolePermissionSeeder extends Seeder
             'create_suppliers',
             'edit_suppliers',
             'delete_suppliers',
+            'view_drivers',
+            'create_drivers',
+            'edit_drivers',
+            'delete_drivers',
+            'view_vehicles',
+            'create_vehicles',
+            'edit_vehicles',
+            'delete_vehicles',
+            'view_deliveries',
+            'create_deliveries',
+            'edit_deliveries',
+            'delete_deliveries',
             'view_products',
             'create_products',
             'edit_products',
@@ -120,7 +150,7 @@ class RolePermissionSeeder extends Seeder
         ]);
 
         // Kasir - POS & view only
-        $kasir = Role::create(['name' => 'Kasir']);
+        $kasir = Role::firstOrCreate(['name' => 'Kasir']);
         $kasir->givePermissionTo([
             'view_products',
             'create_sales',
@@ -129,7 +159,7 @@ class RolePermissionSeeder extends Seeder
         ]);
 
         // Gudang - purchases & stock management
-        $gudang = Role::create(['name' => 'Gudang']);
+        $gudang = Role::firstOrCreate(['name' => 'Gudang']);
         $gudang->givePermissionTo([
             'view_products',
             'view_purchases',

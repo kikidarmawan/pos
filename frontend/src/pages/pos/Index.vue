@@ -11,6 +11,10 @@
               <MagnifyingGlassIcon class="w-4 h-4 mr-1.5" />
               Cari Produk
             </button>
+            <button type="button" @click="openBonusModal" class="btn btn-sm shrink-0 bg-amber-500 hover:bg-amber-600 text-white border-amber-500">
+              <GiftIcon class="w-4 h-4 mr-1.5" />
+              Tambah Bonus
+            </button>
             <div class="relative w-80 shrink-0">
               <input ref="barcodeInputRef" v-model="barcodeInput" @keyup.enter="handleBarcodeScan" type="text"
                 class="input input-sm w-full pl-8" placeholder="Scan Barcode atau Kode satuan..."
@@ -21,13 +25,6 @@
                 <QrCodeIcon v-else class="w-4 h-4 text-gray-400" />
               </div>
             </div>
-            <select v-model="selectedWarehouse" required class="input input-sm w-auto min-w-[140px]"
-              @change="loadProducts">
-              <option value="">Pilih Gudang</option>
-              <option v-for="wh in warehouses" :key="wh.id" :value="wh.id">
-                {{ wh.name }}
-              </option>
-            </select>
             <div class="flex-1"></div>
             <button type="button" @click="toggleFullscreen"
               class="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600 hover:text-primary-600 transition-colors shrink-0"
@@ -72,11 +69,16 @@
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-100">
-                <tr v-for="(item, index) in cartStore.items" :key="index" class="hover:bg-gray-50 transition-colors">
+                <tr v-for="(item, index) in cartStore.items" :key="index" class="hover:bg-gray-50 transition-colors" :class="item.isBonus ? 'bg-amber-50/50' : ''">
                   <td class="px-2 py-2 text-gray-400 text-xs">{{ index + 1 }}</td>
                   <td class="px-2 py-2">
                     <div class="min-w-0">
-                      <p class="font-medium text-xs whitespace-normal line-clamp-2">{{ item.product.name }}</p>
+                      <div class="flex items-center gap-1">
+                        <p class="font-medium text-xs whitespace-normal line-clamp-2">{{ item.product.name }}</p>
+                        <span v-if="item.isBonus" class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 whitespace-nowrap">
+                          <GiftIcon class="w-3 h-3" /> BONUS
+                        </span>
+                      </div>
                       <button @click="openUnitChange(index, item)" type="button"
                         class="text-[10px] text-primary-600 sm:hidden mt-0.5 hover:underline inline-flex items-center gap-0.5">
                         {{ item.unit.name }} <span>&#9660;</span>
@@ -100,16 +102,25 @@
                         class="px-1 py-0.5 bg-gray-200 rounded hover:bg-gray-300 text-xs font-medium">+</button>
                     </div>
                   </td>
-                  <td class="px-2 py-2 text-right text-gray-600 hidden md:table-cell text-xs">{{
-                    formatCurrency(item.price) }}
+                  <td class="px-2 py-2 text-right text-gray-600 hidden md:table-cell text-xs">
+                    <template v-if="item.isBonus">
+                      <span class="text-amber-600 font-medium">GRATIS</span>
+                    </template>
+                    <template v-else>
+                      {{ formatCurrency(item.price) }}
+                    </template>
                   </td>
                   <td class="px-2 py-2 hidden lg:table-cell">
-                    <input :value="item.discount ?? 0"
+                    <input v-if="!item.isBonus" :value="item.discount ?? 0"
                       @input="cartStore.updateItemDiscount(index, ($event.target).value)" type="number" step="100"
                       min="0" class="w-16 text-xs text-center border rounded px-1 py-0.5" placeholder="0" />
+                    <span v-else class="text-xs text-gray-400">—</span>
                   </td>
                   <td class="px-2 py-2 text-right">
-                    <template v-if="(item.discount || 0) > 0">
+                    <template v-if="item.isBonus">
+                      <p class="font-bold text-xs text-amber-600">GRATIS</p>
+                    </template>
+                    <template v-else-if="(item.discount || 0) > 0">
                       <p class="text-[10px] text-gray-400 line-through">{{ formatCurrency(item.price * item.quantity) }}
                       </p>
                       <p class="font-bold text-green-600 text-xs">{{ formatCurrency(item.subtotal) }}</p>
@@ -154,17 +165,15 @@
               <input v-model="cartStore.customer.name" type="text" class="input input-sm py-1.5"
                 :placeholder="selectedCustomer ? '' : 'Walk-in'" />
             </div>
-            <div class="grid grid-cols-2 gap-2">
-              <div>
-                <label class="label text-xs py-0.5">No. HP</label>
-                <input v-model="cartStore.customer.phone" type="text" class="input input-sm py-1.5"
-                  placeholder="08xxx" />
-              </div>
-              <div>
-                <label class="label text-xs py-0.5">Alamat</label>
-                <input v-model="cartStore.customer.address" type="text" class="input input-sm py-1.5"
-                  placeholder="Opsional" />
-              </div>
+            <div>
+              <label class="label text-xs py-0.5">No. HP</label>
+              <input v-model="cartStore.customer.phone" type="text" class="input input-sm py-1.5"
+                placeholder="08xxx" />
+            </div>
+            <div>
+              <label class="label text-xs py-0.5">Alamat</label>
+              <input v-model="cartStore.customer.address" type="text" class="input input-sm py-1.5"
+                placeholder="Opsional" />
             </div>
           </div>
         </div>
@@ -182,11 +191,13 @@
               <input v-model="cartStore.discount" type="number" step="1000"
                 class="w-32 text-right border rounded px-2 py-1.5 text-sm" />
             </div>
+            <!-- Pajak (%) - disembunyikan sesuai permintaan
             <div class="flex justify-between items-center text-sm">
               <span class="text-gray-600">Pajak (%):</span>
               <input v-model="cartStore.tax" type="number" step="1"
                 class="w-32 text-right border rounded px-2 py-1.5 text-sm" />
             </div>
+            -->
             <div class="border-t pt-3 mt-3">
               <div class="flex justify-between text-lg font-bold">
                 <span>Total:</span>
@@ -201,7 +212,7 @@
 
     <!-- Action Buttons - fixed bottom, horizontal, full width (not in sidebar; left-0 when fullscreen) -->
     <div class="fixed bottom-0 left-0 right-0 z-20 bg-white border-t shadow-lg py-3"
-      :class="isFullscreen ? 'px-6' : 'lg:left-64 px-4'">
+      :class="isFullscreen ? 'px-6' : [(sidebarOpen ? 'lg:left-64' : 'lg:left-0'), 'px-4']">
       <div class="flex flex-wrap gap-2 lg:gap-4 items-center justify-between w-full"
         :class="isFullscreen ? '' : 'max-w-7xl mx-auto'">
 
@@ -248,17 +259,31 @@
       leave-to-class="opacity-0"
     >
       <div v-if="showProductModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-        @click.self="showProductModal = false">
+        @click.self="closeProductModal">
       <div class="bg-white rounded-xl shadow-2xl w-full max-w-6xl h-[85vh] overflow-hidden flex flex-col">
         <div class="p-4 border-b flex items-center justify-between shrink-0">
-          <h3 class="text-lg font-bold">Cari Produk</h3>
-          <button @click="showProductModal = false" class="text-gray-400 hover:text-gray-600 transition-colors">
+          <div class="flex items-center gap-2">
+            <h3 class="text-lg font-bold">{{ isBonusMode ? 'Tambah Bonus' : 'Cari Produk' }}</h3>
+            <span v-if="isBonusMode" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700">
+              <GiftIcon class="w-3.5 h-3.5" /> Mode Bonus
+            </span>
+          </div>
+          <button @click="closeProductModal" class="text-gray-400 hover:text-gray-600 transition-colors">
             <XMarkIcon class="w-6 h-6" />
           </button>
         </div>
         <div class="p-4 border-b shrink-0">
-          <input ref="productSearchInput" v-model="search" @input="searchProducts" type="text"
-            placeholder="Cari produk (nama, kode, barcode)..." class="input" />
+          <div class="flex gap-2">
+            <input ref="productSearchInput" v-model="search" @input="searchProducts" type="text"
+              placeholder="Cari produk (nama, kode, barcode)..." class="input flex-1" />
+            <select v-model="selectedWarehouse" required class="input w-auto min-w-[160px]"
+              @change="loadProducts">
+              <option value="">Pilih Gudang</option>
+              <option v-for="wh in warehouses" :key="wh.id" :value="wh.id">
+                {{ wh.name }}
+              </option>
+            </select>
+          </div>
         </div>
         <div class="p-4 flex-1 overflow-y-auto">
           <div v-if="loadingProducts" class="grid place-items-center py-16">
@@ -555,7 +580,7 @@
 </style>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick, inject } from 'vue'
 import { useCartStore } from '@/stores/cart'
 import { useToast } from 'vue-toastification'
 import api from '@/utils/axios'
@@ -574,12 +599,14 @@ import {
   MagnifyingGlassIcon,
   ShoppingCartIcon,
   QrCodeIcon,
-  UserIcon
+  UserIcon,
+  GiftIcon
 } from '@heroicons/vue/24/outline'
 import PaymentModal from './PaymentModal.vue'
 import CustomerFormModal from '@/components/CustomerFormModal.vue'
 import { useAuthStore } from '@/stores/auth'
 
+const sidebarOpen = inject('sidebarOpen', ref(true))
 const cartStore = useCartStore()
 const authStore = useAuthStore()
 const toast = useToast()
@@ -611,6 +638,7 @@ const printerModalContent = ref({ title: '', message: '', type: 'info' })
 const printerReady = ref(false)
 const printerConnecting = ref(false)
 const changingCartIndex = ref(null)
+const isBonusMode = ref(false)
 
 const checkPrinterReady = () => { }
 
@@ -732,10 +760,24 @@ const searchProducts = () => {
 }
 
 const openProductModal = () => {
+  isBonusMode.value = false
   showProductModal.value = true
   nextTick(() => {
     productSearchInput.value?.focus()
   })
+}
+
+const openBonusModal = () => {
+  isBonusMode.value = true
+  showProductModal.value = true
+  nextTick(() => {
+    productSearchInput.value?.focus()
+  })
+}
+
+const closeProductModal = () => {
+  showProductModal.value = false
+  isBonusMode.value = false
 }
 
 const loadCustomers = async () => {
@@ -786,7 +828,8 @@ const holdTransaction = async () => {
       quantity: item.quantity,
       price: item.price,
       discount: item.discount || 0,
-      subtotal: item.subtotal
+      subtotal: item.subtotal,
+      isBonus: item.isBonus || false
     }))
     await api.post('/sale-holds', {
       warehouse_id: selectedWarehouse.value,
@@ -888,7 +931,7 @@ const getSortedUnits = (product) => {
 const addToCartFromSearch = (product, unit) => {
   const success = addToCartDirectly(product, unit)
   if (success) {
-    showProductModal.value = false
+    closeProductModal()
   }
 }
 
@@ -897,7 +940,7 @@ const openUnitSelector = (product) => {
   if (units.length === 1) {
     const success = addToCartDirectly(product, units[0])
     if (success) {
-      showProductModal.value = false
+      closeProductModal()
     }
     return
   }
@@ -930,17 +973,22 @@ const stockForUnit = (pu) => stockForUnitOfProduct(selectedProduct.value, pu)
 
 const addToCartDirectly = (product, productUnit) => {
   const stockAvailable = stockForUnitOfProduct(product, productUnit)
-  const existingItem = cartStore.items.find(
-    (item) => item.product.id === product.id && item.unit.id === productUnit.unit?.id
-  )
-  const qtyInCart = existingItem ? existingItem.quantity : 0
-  const qtyAfterAdd = qtyInCart + 1
+  // Cek total qty di keranjang untuk produk+unit yang sama (bonus + reguler)
+  const totalQtyInCart = cartStore.items
+    .filter((item) => item.product.id === product.id && item.unit.id === productUnit.unit?.id)
+    .reduce((sum, item) => sum + item.quantity, 0)
+  const qtyAfterAdd = totalQtyInCart + 1
 
   if (stockAvailable <= 0 || qtyAfterAdd > stockAvailable) {
     toast.error(`Stok produk "${product.name}" tidak tersedia`)
     return false
   }
-  cartStore.addItem(product, productUnit.unit, productUnit)
+
+  if (isBonusMode.value) {
+    cartStore.addBonusItem(product, productUnit.unit, productUnit)
+  } else {
+    cartStore.addItem(product, productUnit.unit, productUnit)
+  }
   return true
 }
 
@@ -960,7 +1008,7 @@ const addToCart = (productUnit) => {
   const success = addToCartDirectly(selectedProduct.value, productUnit)
   if (success) {
     closeUnitSelector()
-    showProductModal.value = false
+    closeProductModal()
   }
 }
 
