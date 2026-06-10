@@ -11,7 +11,7 @@
     <div v-if="!selectedSale" class="card mb-6">
       <h2 class="text-lg font-semibold mb-4">Pilih Transaksi Penjualan</h2>
       <div class="flex gap-3 mb-4">
-        <input v-model="invoiceSearch" type="text" placeholder="No. Invoice (contoh: INV-20260205-0001)" class="input flex-1" @keyup.enter="searchSales" />
+        <input v-model="invoiceSearch" type="text" placeholder="No. Invoice (contoh: POS-26060001)" class="input flex-1" @keyup.enter="searchSales" />
         <button type="button" @click="searchSales" class="btn btn-primary">Cari</button>
       </div>
       <div v-if="salesSearchResult.length > 0" class="border rounded overflow-hidden">

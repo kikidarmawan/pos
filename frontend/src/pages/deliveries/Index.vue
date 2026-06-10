@@ -58,7 +58,15 @@
             </tr>
             <tr v-else v-for="d in deliveries.data" :key="d.id" class="hover:bg-slate-50/40 transition-colors duration-150">
               <td class="px-6 py-4 align-middle">
-                <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-blue-50 text-blue-700 font-mono text-sm font-semibold border border-blue-100/80 shadow-sm">
+                <button
+                  v-if="hasPermission('view_deliveries')"
+                  @click="viewDetail(d)"
+                  type="button"
+                  class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-blue-50 text-blue-700 font-mono text-sm font-semibold border border-blue-100/80 shadow-sm hover:bg-blue-100 hover:text-blue-800 transition-all duration-150 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-200"
+                >
+                  {{ d.delivery_number }}
+                </button>
+                <div v-else class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-blue-50 text-blue-700 font-mono text-sm font-semibold border border-blue-100/80 shadow-sm">
                   {{ d.delivery_number }}
                 </div>
                 <div v-if="d.user" class="mt-1 text-[10px] text-slate-400">
@@ -131,10 +139,6 @@
                 </div>
               </td>
               <td class="px-6 py-4 align-middle text-right space-x-1.5 whitespace-nowrap" v-if="hasPermission('edit_deliveries') || hasPermission('view_deliveries')">
-                <button v-if="hasPermission('view_deliveries')" @click="viewDetail(d)" class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-sm focus:ring-2 focus:ring-slate-100">
-                  <EyeIcon class="w-3.5 h-3.5" />
-                  Detail
-                </button>
                 <button v-if="hasPermission('view_deliveries')" @click="printDelivery(d)" class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-sm focus:ring-2 focus:ring-slate-100">
                   <PrinterIcon class="w-3.5 h-3.5" />
                   Surat Jalan

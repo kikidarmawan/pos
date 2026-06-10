@@ -97,10 +97,10 @@ class SaleController extends Controller
 
             // Generate invoice number: pakai sale_date dari request agar tanggal di nomor = tanggal transaksi
             $saleDate = $request->sale_date;
-            $datePrefix = \Carbon\Carbon::parse($saleDate)->format('Ymd');
-            $lastSale = Sale::where('invoice_number', 'like', 'INV-' . $datePrefix . '-%')->latest('id')->first();
+            $datePrefix = \Carbon\Carbon::parse($saleDate)->format('ym');
+            $lastSale = Sale::where('invoice_number', 'like', 'POS-' . $datePrefix . '%')->latest('id')->first();
             $number = $lastSale ? intval(substr($lastSale->invoice_number, -4)) + 1 : 1;
-            $invoiceNumber = 'INV-' . $datePrefix . '-' . str_pad($number, 4, '0', STR_PAD_LEFT);
+            $invoiceNumber = 'POS-' . $datePrefix . str_pad($number, 4, '0', STR_PAD_LEFT);
 
             // Create sale
             $sale = Sale::create([
