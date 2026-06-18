@@ -81,13 +81,33 @@ export async function getSystemPrinters() {
     return [];
   }
   try {
+    const osType = await import("@tauri-apps/plugin-os").then(m => m.type());
+    if (osType === "android") {
+      const { list_thermal_printers } = await import("tauri-plugin-thermal-printer");
+      const list = await list_thermal_printers();
+      // Mengembalikan format "NamaPrinter|MAC_ADDRESS"
+      return list.map(p => `${p.name}|${p.identifier}`);
+    }
+
     const { invoke } = await import("@tauri-apps/api/core");
     const list = await invoke("get_system_printers");
-    console.log("list", invoke);
     return Array.isArray(list) ? list : [];
   } catch (e) {
     console.warn("get_system_printers failed:", e);
     throw e;
+  }
+}
+
+export async function openBluetoothSettings() {
+  try {
+    const osType = await import("@tauri-apps/plugin-os").then(m => m.type());
+    if (osType === "android") {
+      const a = document.createElement("a");
+      a.href = "intent:#Intent;action=android.settings.BLUETOOTH_SETTINGS;end";
+      a.click();
+    }
+  } catch (e) {
+    console.warn("Failed to open bluetooth settings:", e);
   }
 }
 
@@ -348,6 +368,83 @@ function buildReceiptText(sale, store = {}, options = {}) {
 }
 
 /**
+ * Bangun isi struk untuk tauri-plugin-thermal-printer (khusus Android)
+ */
+function buildReceiptSections(sale, store = {}, options = {}) {
+  const opts = { ...DEFAULT_PRINTER_SETTINGS, ...options };
+  const sections = [];
+  const storeName = store.name || "POS System";
+  const storeAddress = (store.address || "").trim();
+  const storePhone = (store.phone || "").trim();
+
+  const invoice = sale.invoice_number || "-";
+  const dateStr = formatDateTime(sale.sale_date || sale.created_at);
+  const cashier = sale.user?.name || "-";
+  
+  const paymentMethod = formatPaymentMethod(sale.payment_method);
+  
+  // Header
+  sections.push({ "Text": { "text": storeName, "styles": { "bold": true, "align": "center" } } });
+  if (storeAddress) sections.push({ "Text": { "text": storeAddress, "styles": { "align": "center" } } });
+  if (storePhone) sections.push({ "Text": { "text": storePhone, "styles": { "align": "center" } } });
+  
+  sections.push({ "Line": { "character": "=" } });
+  sections.push({ "Text": { "text": "STRUK PEMBAYARAN", "styles": { "bold": true, "align": "center" } } });
+  sections.push({ "Line": { "character": "=" } });
+  
+  // Info
+  let info = `Invoice   : ${invoice}\nTanggal   : ${dateStr}\nKasir     : ${cashier}`;
+  if (sale.customer_name) info += `\nPelanggan : ${(sale.customer_name || "").trim()}`;
+  if (sale.customer_phone) info += `\nNo. HP    : ${(sale.customer_phone || "").trim()}`;
+  if (sale.customer_address) info += `\nAlamat    : ${(sale.customer_address || "").trim()}`;
+  sections.push({ "Text": { "text": info } });
+  
+  // Items
+  sections.push({ "Line": { "character": "-" } });
+  sections.push({ "Text": { "text": "ITEM", "styles": { "align": "center" } } });
+  sections.push({ "Line": { "character": "-" } });
+  
+  const LINE_WIDTH = opts.paperWidth == 58 ? 32 : 48;
+  const details = sale.details || [];
+  for (const d of details) {
+    const name = d.product?.name || "Produk";
+    const qtyStr = formatIntegerOrDecimal(d.quantity);
+    const unit = d.unit?.name || "";
+    const price = formatCurrency(d.price);
+    const subtotal = formatCurrency(d.subtotal);
+    
+    sections.push({ "Text": { "text": name } });
+    const line2 = `${qtyStr} ${unit} x ${price}`;
+    const space = Math.max(1, LINE_WIDTH - line2.length - subtotal.length);
+    sections.push({ "Text": { "text": line2 + " ".repeat(space) + subtotal } });
+  }
+  
+  sections.push({ "Line": { "character": "-" } });
+  
+  const subtotalVal = Number(sale.subtotal || 0);
+  const discountVal = Number(sale.discount || 0);
+  const taxVal = Number(sale.tax || 0);
+  const totalVal = Number(sale.total || 0);
+  const paidVal = Number(sale.paid || 0);
+  const changeVal = Number(sale.change || 0);
+  
+  sections.push({ "Text": { "text": `Subtotal : ${formatCurrency(subtotalVal)}` } });
+  if (discountVal > 0) sections.push({ "Text": { "text": `Diskon   : -${formatCurrency(discountVal)}` } });
+  if (taxVal > 0) sections.push({ "Text": { "text": `Pajak    : ${formatCurrency(taxVal)}` } });
+  sections.push({ "Line": { "character": "-" } });
+  sections.push({ "Text": { "text": `TOTAL    : ${formatCurrency(totalVal)}`, "styles": { "bold": true } } });
+  sections.push({ "Text": { "text": `Bayar    : ${formatCurrency(paidVal)}` } });
+  if (changeVal > 0) sections.push({ "Text": { "text": `Kembali  : ${formatCurrency(changeVal)}` } });
+  
+  sections.push({ "Text": { "text": `Metode   : ${paymentMethod}\n` } });
+  
+  sections.push({ "Text": { "text": "Terima kasih\natas kunjungan Anda\n", "styles": { "align": "center" } } });
+  
+  sections.push({ "Feed": { "feed_type": "lines", "value": 3 } });
+  return sections;
+}
+
+/**
  * Cetak struk di desktop (Tauri): jika ada printer default di pengaturan, cetak langsung ke printer; jika tidak, buka dialog print.
  * @param {Object} sale - data penjualan
  * @param {Object} [optsOverride] - opsional: pengaturan printer (paperWidth, fontSize, showStoreHeader, defaultPrinterName) untuk test print
@@ -363,9 +460,29 @@ async function printReceiptInDesktop(sale, optsOverride) {
     ? normalizePrinterSettings(optsOverride)
     : await getPrinterSettings();
 
-  // Di Tauri selalu pakai command Rust (hindari window.print() di WebView macOS yang menyebabkan "page has no displayID" dan cetak gagal)
-  const text = buildReceiptText(sale, store, printerOpts);
   try {
+    const osType = await import("@tauri-apps/plugin-os").then(m => m.type());
+    if (osType === "android") {
+      const { print_thermal_printer } = await import("tauri-plugin-thermal-printer");
+      const printerVal = printerOpts.defaultPrinterName || "";
+      let macAddress = printerVal;
+      if (printerVal.includes("|")) {
+        macAddress = printerVal.split("|")[1];
+      }
+      
+      const sections = buildReceiptSections(sale, store, printerOpts);
+      await print_thermal_printer({
+        printer: macAddress,
+        paper_size: printerOpts.paperWidth === 58 ? "Mm58" : "Mm80",
+        options: { code_page: 0 },
+        sections
+      });
+
+      return { success: true, method: "android-bluetooth" };
+    }
+
+    // Di Tauri selalu pakai command Rust (hindari window.print() di WebView macOS yang menyebabkan "page has no displayID" dan cetak gagal)
+    const text = buildReceiptText(sale, store, printerOpts);
     const { invoke } = await import("@tauri-apps/api/core");
     await invoke("print_receipt_to_printer", {
       printerName: printerOpts.defaultPrinterName || "",

@@ -13,23 +13,28 @@
           Klik "Scan printer" untuk mendeteksi printer yang terpasang di komputer (hanya di aplikasi desktop). Termasuk printer Bluetooth yang sudah dipasang (pairing) di Pengaturan Sistem.
         </p>
         <template v-if="isTauri()">
-          <button type="button" @click="scanPrinters" :disabled="scanning" class="btn btn-secondary mb-4">
-            {{ scanning ? 'Memindai...' : 'Scan printer' }}
-          </button>
+          <div class="flex flex-wrap gap-3 mb-4">
+            <button type="button" @click="scanPrinters" :disabled="scanning" class="btn btn-secondary">
+              {{ scanning ? 'Memindai...' : 'Scan printer' }}
+            </button>
+            <button type="button" @click="handleOpenBluetooth" class="btn btn-secondary">
+              Cari & Pairing Printer (Bluetooth)
+            </button>
+          </div>
           <div v-if="scanError" class="text-sm text-red-600 mb-2">{{ scanError }}</div>
           <div v-if="printers.length > 0" class="space-y-3">
             <div class="flex items-center gap-3">
               <label class="label shrink-0">Printer untuk struk:</label>
               <select v-model="form.defaultPrinterName" class="input flex-1 max-w-md">
                 <option :value="null">Tidak dipilih (gunakan dialog print)</option>
-                <option v-for="name in printerOptions" :key="name" :value="name">{{ name }}{{ printers.includes(name) ? '' : ' (belum di-scan)' }}</option>
+                <option v-for="name in printerOptions" :key="name" :value="name">{{ name.split('|')[0] }}{{ printers.includes(name) ? '' : ' (belum di-scan)' }}</option>
               </select>
             </div>
             <p class="text-sm text-gray-500">Jika dipilih, struk akan langsung dicetak ke printer ini saat penjualan/POS. Jika tidak dipilih, akan muncul dialog print.</p>
             <div class="border border-gray-200 rounded-lg divide-y divide-gray-200 max-h-60 overflow-y-auto">
               <div v-for="(name, i) in printers" :key="i" class="px-4 py-2.5 text-sm text-gray-700 flex items-center gap-2">
                 <span class="w-5 h-5 rounded bg-primary-100 text-primary-600 flex items-center justify-center text-xs font-medium">{{ i + 1 }}</span>
-                {{ name }}
+                {{ name.split('|')[0] }}
               </div>
             </div>
           </div>
@@ -85,7 +90,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useToast } from 'vue-toastification'
-import { getPrinterSettings, savePrinterSettings, getSystemPrinters, isTauri, printTestReceipt } from '@/utils/printReceipt'
+import { getPrinterSettings, savePrinterSettings, getSystemPrinters, isTauri, printTestReceipt, openBluetoothSettings } from '@/utils/printReceipt'
 
 const toast = useToast()
 const printerOptions = computed(() => {
@@ -141,6 +146,10 @@ const scanPrinters = async () => {
   } finally {
     scanning.value = false
   }
+}
+
+const handleOpenBluetooth = async () => {
+  await openBluetoothSettings()
 }
 
 const handleSave = async () => {

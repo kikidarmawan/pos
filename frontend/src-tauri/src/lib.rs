@@ -4,6 +4,7 @@
 )]
 
 use std::fs;
+#[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
 use std::process::Command;
 
 /// Daftar printer yang terdeteksi di sistem (macOS: lpstat, Windows: PowerShell, Linux: lpstat)
@@ -58,6 +59,11 @@ fn get_system_printers() -> Result<Vec<String>, String> {
             })
             .collect();
         Ok(printers)
+    }
+
+    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+    {
+        Ok(vec![])
     }
 }
 
@@ -114,11 +120,18 @@ fn print_receipt_to_printer(printer_name: String, content: String) -> Result<(),
         }
         Ok(())
     }
+
+    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+    {
+        Err("Pencetakan langsung tidak didukung di Android/iOS untuk saat ini.".to_string())
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_thermal_printer::init())
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![get_system_printers, print_receipt_to_printer])
         .run(tauri::generate_context!())

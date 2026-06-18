@@ -16,4 +16,6 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = [] }
+tauri-plugin-os = "2.3.2"
 tauri-plugin-shell = "2"
+tauri-plugin-thermal-printer = "2.0.1"
